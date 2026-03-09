@@ -82,3 +82,14 @@
 2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_06.txt
 2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_06.txt \u2192 C:\FileDest\MNO\test_20260308_215339_06.txt
 2026-03-08 21:53:43  INFO      Run complete: 6 copied, 0 skipped.
+2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_01.ndjson
+2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_01.ndjson \u2192 C:\FileDest\DEF\test_20260308_232041_01.ndjson
+2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_02.csv
+2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_02.csv \u2192 C:\FileDest\DEF\test_20260308_232041_02.csv
+2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_03.ndjson
+2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_03.ndjson \u2192 C:\FileDest\DEF\test_20260308_232041_03.ndjson
+2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_04.csv
+2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_04.csv \u2192 C:\FileDest\DEF\test_20260308_232041_04.csv
+2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_05.ndjson
+2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_05.ndjson \u2192 C:\FileDest\DEF\test_20260308_232041_05.ndjson
+2026-03-08 23:20:54  INFO      Run complete: 5 copied, 0 skipped.

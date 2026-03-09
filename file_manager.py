@@ -2,6 +2,7 @@ import ctypes
 import ctypes.wintypes
 import json
 import logging
+import random
 import shutil
 import threading
 import tkinter as tk
@@ -83,25 +84,103 @@ def copy_with_metadata(src: Path, dst: Path) -> None:
 
 # ── Demo / test file generation ──────────────────────────────────────────────
 
-def create_test_files(source_dir: Path, folder_name: str, count: int) -> list:
-    """Create <count> small text files inside source_dir / folder_name.
+# Data pools used by the mock-content generators
+_FIRST_NAMES  = ["Alice", "Bob", "Carol", "David", "Eve", "Frank", "Grace",
+                  "Hank", "Iris", "Jake", "Karen", "Leo", "Mia", "Noah"]
+_LAST_NAMES   = ["Smith", "Jones", "Williams", "Brown", "Davis", "Miller",
+                  "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Martin"]
+_DEPARTMENTS  = ["Engineering", "Sales", "Marketing", "Finance", "HR",
+                  "Operations", "Legal", "Support"]
+_CITIES       = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+                  "Philadelphia", "San Antonio", "San Diego", "Dallas", "Austin"]
+_ACCT_TYPES   = ["Standard", "Premium", "Enterprise"]
+_TXN_TYPES    = ["DEBIT", "CREDIT", "TRANSFER", "REFUND"]
 
+
+def _make_csv_rows(row_count: int) -> str:
+    """Return a comma-separated employee CSV with a header row and CRLF line endings."""
+    lines = ["EmployeeId,FirstName,LastName,Department,Salary,HireDate,Email"]
+    for _ in range(row_count):
+        emp_id = random.randint(100, 9999)
+        first  = random.choice(_FIRST_NAMES)
+        last   = random.choice(_LAST_NAMES)
+        dept   = random.choice(_DEPARTMENTS)
+        salary = random.randint(45, 150) * 1000
+        year   = random.randint(2010, 2024)
+        month  = random.randint(1, 12)
+        day    = random.randint(1, 28)
+        email  = f"{first.lower()}.{last.lower()}@example.com"
+        lines.append(
+            f"{emp_id},{first},{last},{dept},{salary},"
+            f"{year}-{month:02d}-{day:02d},{email}"
+        )
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _make_txt_rows(row_count: int) -> str:
+    """Return a pipe-delimited transaction file with no header row and CRLF line endings."""
+    lines = []
+    for _ in range(row_count):
+        txn_id   = f"TXN{random.randint(1000, 9999)}"
+        year     = random.randint(2023, 2024)
+        month    = random.randint(1, 12)
+        day      = random.randint(1, 28)
+        txn_type = random.choice(_TXN_TYPES)
+        amount   = round(random.uniform(10.0, 9999.99), 2)
+        account  = f"ACC{random.randint(1000, 9999)}"
+        status   = random.choice(["CLEARED", "PENDING", "FAILED"])
+        lines.append(
+            f"{txn_id}|{year}-{month:02d}-{day:02d}|{txn_type}|{amount:.2f}|{account}|{status}"
+        )
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _make_ndjson_rows(row_count: int) -> str:
+    """Return NDJSON customer records, one JSON object per line, with CRLF line endings."""
+    lines = []
+    for _ in range(row_count):
+        record = {
+            "customerId":  f"CUST{random.randint(1000, 9999)}",
+            "firstName":   random.choice(_FIRST_NAMES),
+            "lastName":    random.choice(_LAST_NAMES),
+            "city":        random.choice(_CITIES),
+            "accountType": random.choice(_ACCT_TYPES),
+            "balance":     round(random.uniform(-500.0, 25000.0), 2),
+            "active":      random.choice([True, False]),
+            "createdDate": (
+                f"{random.randint(2018, 2024)}-"
+                f"{random.randint(1, 12):02d}-"
+                f"{random.randint(1, 28):02d}"
+            ),
+        }
+        lines.append(json.dumps(record))
+    return "\r\n".join(lines) + "\r\n"
+
+
+def create_test_files(source_dir: Path, folder_name: str, count: int) -> list:
+    """Create <count> demo files inside source_dir / folder_name.
+
+    Each file is randomly one of: .csv (employees), .txt (pipe-delimited transactions),
+    or .ndjson (customer records).  Row count is randomised (5-15) per file.
     File names include a timestamp so repeated calls always produce unique files.
     Returns the list of Path objects that were created.
     """
     target = source_dir / folder_name
-    target.mkdir(parents=True, exist_ok=True)  # create the folder if it doesn't exist yet
+    target.mkdir(parents=True, exist_ok=True)
 
-    stamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp      = datetime.now().strftime("%Y%m%d_%H%M%S")
+    generators = [
+        (".csv",    _make_csv_rows),
+        (".txt",    _make_txt_rows),
+        (".ndjson", _make_ndjson_rows),
+    ]
     created = []
 
     for i in range(1, count + 1):
-        file_path = target / f"test_{stamp}_{i:02d}.txt"
-        file_path.write_text(
-            f"Test file {i} of {count}\n"
-            f"Created by File Manager demo at {datetime.now()}\n"
-            f"Source folder : {folder_name}\n"
-        )
+        ext, generator = random.choice(generators)
+        row_count      = random.randint(5, 15)
+        file_path      = target / f"test_{stamp}_{i:02d}{ext}"
+        file_path.write_bytes(generator(row_count).encode("utf-8"))
         created.append(file_path)
 
     return created

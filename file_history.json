@@ -187,5 +187,40 @@
     "source_path": "C:\\FileLanding\\MNO\\test_20260308_215339_06.txt",
     "dest_path": "C:\\FileDest\\MNO\\test_20260308_215339_06.txt",
     "folder": "MNO"
+  },
+  {
+    "run_time": "2026-03-08T23:20:54.686945",
+    "file_name": "test_20260308_232041_01.ndjson",
+    "source_path": "C:\\FileLanding\\DEF\\test_20260308_232041_01.ndjson",
+    "dest_path": "C:\\FileDest\\DEF\\test_20260308_232041_01.ndjson",
+    "folder": "DEF"
+  },
+  {
+    "run_time": "2026-03-08T23:20:54.686945",
+    "file_name": "test_20260308_232041_02.csv",
+    "source_path": "C:\\FileLanding\\DEF\\test_20260308_232041_02.csv",
+    "dest_path": "C:\\FileDest\\DEF\\test_20260308_232041_02.csv",
+    "folder": "DEF"
+  },
+  {
+    "run_time": "2026-03-08T23:20:54.686945",
+    "file_name": "test_20260308_232041_03.ndjson",
+    "source_path": "C:\\FileLanding\\DEF\\test_20260308_232041_03.ndjson",
+    "dest_path": "C:\\FileDest\\DEF\\test_20260308_232041_03.ndjson",
+    "folder": "DEF"
+  },
+  {
+    "run_time": "2026-03-08T23:20:54.686945",
+    "file_name": "test_20260308_232041_04.csv",
+    "source_path": "C:\\FileLanding\\DEF\\test_20260308_232041_04.csv",
+    "dest_path": "C:\\FileDest\\DEF\\test_20260308_232041_04.csv",
+    "folder": "DEF"
+  },
+  {
+    "run_time": "2026-03-08T23:20:54.686945",
+    "file_name": "test_20260308_232041_05.ndjson",
+    "source_path": "C:\\FileLanding\\DEF\\test_20260308_232041_05.ndjson",
+    "dest_path": "C:\\FileDest\\DEF\\test_20260308_232041_05.ndjson",
+    "folder": "DEF"
   }
 ]
