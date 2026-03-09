@@ -342,6 +342,7 @@ class FileManagerApp(tk.Tk):
         self._build_file_history_tab()
         self._build_log_tab()
         self._build_sql_import_tab()
+        self._build_file_inspector_tab()
 
         # Refresh tabs whenever they are switched to
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
@@ -654,6 +655,8 @@ class FileManagerApp(tk.Tk):
         elif tab_name == "SQL Import":
             self._refresh_sql_import_log()
             self._refresh_sql_import_folders()
+        elif tab_name == "File Inspector":
+            self._refresh_inspector_folders()
 
     # ── Settings helpers ──────────────────────────────────────────────────────
 
@@ -1496,6 +1499,305 @@ class FileManagerApp(tk.Tk):
                 rejected,
                 status,
             ))
+
+    # ── File Inspector tab ────────────────────────────────────────────────────
+
+    def _build_file_inspector_tab(self):
+        """Tab 8 — pick a file from a backup folder and view column/key statistics."""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="  File Inspector  ")
+
+        # ── Controls ─────────────────────────────────────────────────────────
+        ctrl_frame = ttk.LabelFrame(frame, text=" Select File ", padding=6)
+        ctrl_frame.pack(fill=tk.X, padx=8, pady=(6, 4))
+
+        ctrl_row = tk.Frame(ctrl_frame)
+        ctrl_row.pack(fill=tk.X)
+
+        ttk.Label(ctrl_row, text="Folder:").pack(side=tk.LEFT, padx=(0, 4))
+        self.insp_folder_var   = tk.StringVar()
+        self.insp_folder_combo = ttk.Combobox(
+            ctrl_row, textvariable=self.insp_folder_var,
+            state="readonly", width=16,
+        )
+        self.insp_folder_combo.pack(side=tk.LEFT, padx=(0, 12))
+        self.insp_folder_combo.bind(
+            "<<ComboboxSelected>>", lambda _e: self._refresh_inspector_files()
+        )
+
+        ttk.Label(ctrl_row, text="File:").pack(side=tk.LEFT, padx=(0, 4))
+        self.insp_file_var   = tk.StringVar()
+        self.insp_file_combo = ttk.Combobox(
+            ctrl_row, textvariable=self.insp_file_var,
+            state="readonly", width=30,
+        )
+        self.insp_file_combo.pack(side=tk.LEFT, padx=(0, 12))
+
+        self.btn_inspect = tk.Button(
+            ctrl_row,
+            text="Inspect",
+            bg="#2d7dd2", fg="white", font=("Segoe UI", 10, "bold"),
+            width=10, command=self._on_inspect,
+        )
+        self.btn_inspect.pack(side=tk.LEFT)
+
+        # ── Output area ───────────────────────────────────────────────────────
+        self.insp_output = scrolledtext.ScrolledText(
+            frame, wrap=tk.NONE,
+            state=tk.DISABLED,
+            font=("Consolas", 9),
+            bg="#1e1e1e", fg="#d4d4d4",
+            insertbackground="white",
+        )
+        hsb = ttk.Scrollbar(frame, orient=tk.HORIZONTAL,
+                             command=self.insp_output.xview)
+        self.insp_output.configure(xscrollcommand=hsb.set)
+        hsb.pack(side=tk.BOTTOM, fill=tk.X, padx=8, pady=(0, 4))
+        self.insp_output.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 0))
+
+        self._refresh_inspector_folders()
+
+    def _refresh_inspector_folders(self):
+        """Populate the Folder dropdown from config folder_map values."""
+        try:
+            config  = load_config()
+            folders = list(config.get("folder_map", {}).values())
+        except Exception:
+            folders = []
+
+        self.insp_folder_combo.config(values=folders)
+        # Reset file list whenever folders reload
+        self.insp_file_combo.config(values=[])
+        self.insp_file_var.set("")
+
+    def _refresh_inspector_files(self):
+        """Populate the File dropdown with files in the selected backup subfolder."""
+        try:
+            config     = load_config()
+            backup_dir = Path(config["backup_dir"])
+        except Exception:
+            return
+
+        folder = self.insp_folder_var.get()
+        if not folder:
+            return
+
+        folder_path = backup_dir / folder
+        try:
+            files = sorted(
+                f.name for f in folder_path.iterdir() if f.is_file()
+            )
+        except Exception:
+            files = []
+
+        self.insp_file_combo.config(values=files)
+        if files:
+            self.insp_file_var.set(files[0])
+        else:
+            self.insp_file_var.set("")
+
+    def _on_inspect(self):
+        """Validate selection and kick off inspection in a background thread."""
+        folder = self.insp_folder_var.get().strip()
+        fname  = self.insp_file_var.get().strip()
+
+        if not folder or not fname:
+            messagebox.showwarning("No File Selected",
+                                   "Choose a folder and a file before inspecting.")
+            return
+
+        try:
+            config     = load_config()
+            backup_dir = Path(config["backup_dir"])
+        except Exception as e:
+            messagebox.showerror("Config Error", str(e))
+            return
+
+        file_path = backup_dir / folder / fname
+
+        # Clear the output area and disable the button while running
+        self.insp_output.config(state=tk.NORMAL)
+        self.insp_output.delete("1.0", tk.END)
+        self.insp_output.config(state=tk.DISABLED)
+        self.btn_inspect.config(state=tk.DISABLED, text="Inspecting…")
+
+        def run():
+            """Run inspection then restore the button on the main thread."""
+            try:
+                self._do_inspect(file_path)
+            finally:
+                self.after(0, lambda: self.btn_inspect.config(
+                    state=tk.NORMAL, text="Inspect"
+                ))
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def _do_inspect(self, file_path: Path):
+        """Analyse a file and write a formatted report to the output area.
+
+        Handles CSV/TXT (delimiter-separated) and NDJSON. Runs in a background thread.
+        """
+        import csv
+        import json as _json
+
+        ext  = file_path.suffix.lower()
+        size = file_path.stat().st_size
+        # Human-readable size
+        if size >= 1_048_576:
+            size_str = f"{size / 1_048_576:.1f} MB"
+        elif size >= 1_024:
+            size_str = f"{size / 1_024:.1f} KB"
+        else:
+            size_str = f"{size} B"
+
+        w = self._insp_write  # shorthand
+
+        if ext in (".csv", ".txt"):
+            delimiter, has_header = _sniff_csv(file_path)
+
+            # Read all rows
+            try:
+                with open(file_path, encoding="utf-8", errors="replace", newline="") as fh:
+                    reader = csv.reader(fh, delimiter=delimiter)
+                    rows   = list(reader)
+            except Exception as e:
+                w(f"ERROR reading file: {e}\n")
+                return
+
+            if not rows:
+                w("File is empty.\n")
+                return
+
+            if has_header:
+                headers   = rows[0]
+                data_rows = rows[1:]
+            else:
+                headers   = [f"Col{i+1}" for i in range(len(rows[0]))]
+                data_rows = rows
+
+            num_cols = len(headers)
+
+            w("=" * 70 + "\n")
+            w("FILE SUMMARY\n")
+            w("=" * 70 + "\n")
+            w(f"  Path      : {file_path}\n")
+            w(f"  Size      : {size_str}\n")
+            w(f"  Rows      : {len(data_rows):,}  (excluding header)\n")
+            w(f"  Columns   : {num_cols}\n")
+            w(f"  Delimiter : {repr(delimiter)}\n")
+            w(f"  Header    : {'yes' if has_header else 'no'}\n")
+            w("\n")
+            w("=" * 70 + "\n")
+            w("COLUMN ANALYSIS\n")
+            w("=" * 70 + "\n")
+
+            # Column header line
+            w(f"  {'#':>3}  {'Name':<22}  {'MaxLen':>6}  {'MinLen':>6}  "
+              f"{'AvgLen':>6}  {'NonEmpty':>8}  Samples\n")
+            w("  " + "-" * 67 + "\n")
+
+            for i, col_name in enumerate(headers):
+                values    = [r[i] for r in data_rows if i < len(r)]
+                non_empty = [v for v in values if v.strip()]
+                lengths   = [len(v) for v in non_empty] if non_empty else [0]
+
+                max_len  = max(lengths)
+                min_len  = min(lengths)
+                avg_len  = sum(lengths) / len(lengths) if lengths else 0
+                ne_count = len(non_empty)
+
+                # Up to 3 unique sample values
+                seen, samples = set(), []
+                for v in non_empty:
+                    if v not in seen:
+                        seen.add(v)
+                        samples.append(v)
+                    if len(samples) == 3:
+                        break
+                sample_str = ", ".join(samples)
+
+                w(f"  {i+1:>3}  {col_name:<22}  {max_len:>6}  {min_len:>6}  "
+                  f"{avg_len:>6.1f}  {ne_count:>8,}  {sample_str}\n")
+
+        elif ext in (".json", ".ndjson"):
+            valid_count   = 0
+            invalid_count = 0
+            # key → {types, max_str_len, non_null_count, samples}
+            key_stats: dict = {}
+
+            try:
+                with open(file_path, encoding="utf-8", errors="replace") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            record = _json.loads(line)
+                            valid_count += 1
+                        except _json.JSONDecodeError:
+                            invalid_count += 1
+                            continue
+
+                        for key, val in record.items():
+                            if key not in key_stats:
+                                key_stats[key] = {
+                                    "types": set(),
+                                    "max_str_len": 0,
+                                    "non_null": 0,
+                                    "samples": [],
+                                }
+                            s = key_stats[key]
+                            type_name = type(val).__name__ if val is not None else "null"
+                            s["types"].add(type_name)
+                            if val is not None:
+                                s["non_null"] += 1
+                            if isinstance(val, str):
+                                s["max_str_len"] = max(s["max_str_len"], len(val))
+                            if len(s["samples"]) < 3 and str(val) not in s["samples"]:
+                                s["samples"].append(str(val))
+
+            except Exception as e:
+                w(f"ERROR reading file: {e}\n")
+                return
+
+            w("=" * 70 + "\n")
+            w("FILE SUMMARY\n")
+            w("=" * 70 + "\n")
+            w(f"  Path    : {file_path}\n")
+            w(f"  Size    : {size_str}\n")
+            w(f"  Records : {valid_count:,}  "
+              f"(valid: {valid_count:,}, invalid: {invalid_count:,})\n")
+            w("\n")
+            w("=" * 70 + "\n")
+            w("KEY ANALYSIS\n")
+            w("=" * 70 + "\n")
+            w(f"  {'Key':<22}  {'Types':<14}  {'MaxLen':>6}  {'NonNull':>7}  Samples\n")
+            w("  " + "-" * 67 + "\n")
+
+            for key in sorted(key_stats):
+                s        = key_stats[key]
+                types    = "/".join(sorted(s["types"]))
+                max_len  = s["max_str_len"] if "str" in s["types"] else "-"
+                non_null = s["non_null"]
+                samples  = ", ".join(s["samples"])
+                w(f"  {key:<22}  {types:<14}  {str(max_len):>6}  "
+                  f"{non_null:>7,}  {samples}\n")
+
+        else:
+            w(f"Unsupported file type: {ext}\n")
+            return
+
+        w("\n" + "=" * 70 + "\n")
+        w("Done.\n")
+
+    def _insp_write(self, text: str):
+        """Append text to the inspector output area. Safe to call from a background thread."""
+        def _insert():
+            self.insp_output.config(state=tk.NORMAL)
+            self.insp_output.insert(tk.END, text)
+            self.insp_output.see(tk.END)
+            self.insp_output.config(state=tk.DISABLED)
+        self.after(0, _insert)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
