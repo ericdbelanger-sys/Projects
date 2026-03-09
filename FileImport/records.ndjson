@@ -1,0 +1,8 @@
+{"id": "REC001", "name": "Widget A", "category": "Hardware", "price": 9.99, "inStock": true, "supplier": "Acme Co", "tags": ["sale", "featured"]}
+{"id": "REC002", "name": "Widget B", "category": "Software", "price": 49.99, "inStock": true, "supplier": "TechCorp", "tags": ["new"]}
+{"id": "REC003", "name": "Gadget X", "category": "Hardware", "price": 149.99, "inStock": false, "supplier": "Acme Co", "tags": ["clearance"]}
+{"id": "REC004", "name": "Service Pack Pro", "category": "Services", "price": 199.99, "inStock": true, "supplier": "TechCorp", "tags": []}
+{"id": "REC005", "name": "Connector Cable", "category": "Accessories", "price": 14.99, "inStock": true, "supplier": "PartsPlus", "tags": ["sale"]}
+{"id": "REC006", "name": "Broken Entry â€” intentionally malformed to test usp_ValidateJSON", "price": 29.99, "inStock": true
+{"id": "REC007", "name": "Battery Pack", "category": "Accessories", "price": 34.99, "inStock": false, "supplier": "PartsPlus", "tags": ["clearance", "sale"]}
+{"id": "REC008", "name": "Display Stand", "category": "Hardware", "price": 79.99, "inStock": true, "supplier": "Acme Co", "tags": []}

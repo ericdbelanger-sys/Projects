@@ -1,0 +1,15 @@
+{
+    "source_dir": "C:/FileLanding",
+    "backup_dir": "C:/FileDest",
+    "folder_map": {
+        "ABC": "ABC",
+        "DEF": "DEF",
+        "GHI": "GHI",
+        "JKL": "JKL",
+        "MNO": "MNO"
+    },
+    "sql_connection": {
+        "server": "localhost",
+        "database": "FileImportDB"
+    }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "run_time": "2026-03-03T08:26:45.189248",
+    "files_found": 0,
+    "copied": 0,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T08:42:07.123584",
+    "files_found": 4,
+    "copied": 4,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T08:59:11.445777",
+    "files_found": 3,
+    "copied": 3,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T09:59:59.447693",
+    "files_found": 8,
+    "copied": 8,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T10:03:38.535882",
+    "files_found": 0,
+    "copied": 0,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T12:48:21.910998",
+    "files_found": 0,
+    "copied": 0,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-03T15:44:03.544115",
+    "files_found": 6,
+    "copied": 6,
+    "skipped": 0
+  },
+  {
+    "run_time": "2026-03-08T21:53:43.883822",
+    "files_found": 6,
+    "copied": 6,
+    "skipped": 0
+  }
+]

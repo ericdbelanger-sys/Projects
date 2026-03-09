@@ -1,0 +1,84 @@
+2026-03-03 08:18:18  INFO      \u2500\u2500 GetFiles started at 2026-03-03 08:18:18 \u2500\u2500
+2026-03-03 08:18:18  INFO      Source : C:\FileLanding
+2026-03-03 08:18:18  INFO      Backup : C:\FileDest
+2026-03-03 08:18:18  INFO      Checking for files newer than: 1970-01-01 00:00:00
+2026-03-03 08:18:18  INFO        Found : ABC\ugewfh.txt  (2026-03-03 08:17:21)
+2026-03-03 08:18:18  INFO      Found: C:\FileLanding\ABC\ugewfh.txt
+2026-03-03 08:18:18  INFO        Copied \u2192 C:\FileDest\ABC\ugewfh.txt
+2026-03-03 08:18:18  INFO      Copied: C:\FileLanding\ABC\ugewfh.txt \u2192 C:\FileDest\ABC\ugewfh.txt
+2026-03-03 08:18:18  INFO        Found : DEF\absbbsbsb.txt  (2026-03-03 08:17:29)
+2026-03-03 08:18:18  INFO      Found: C:\FileLanding\DEF\absbbsbsb.txt
+2026-03-03 08:18:18  INFO        Copied \u2192 C:\FileDest\DEF\absbbsbsb.txt
+2026-03-03 08:18:18  INFO      Copied: C:\FileLanding\DEF\absbbsbsb.txt \u2192 C:\FileDest\DEF\absbbsbsb.txt
+2026-03-03 08:18:18  INFO      Done — 2 file(s) copied, 0 skipped (unmapped folders).
+2026-03-03 08:18:18  INFO      Run complete: 2 copied, 0 skipped.
+2026-03-03 08:18:58  INFO      \u2500\u2500 GetFiles started at 2026-03-03 08:18:58 \u2500\u2500
+2026-03-03 08:18:58  INFO      Source : C:\FileLanding
+2026-03-03 08:18:58  INFO      Backup : C:\FileDest
+2026-03-03 08:18:58  INFO      Checking for files newer than: 2026-03-03 08:18:18
+2026-03-03 08:18:58  INFO      Done — 0 file(s) copied, 0 skipped (unmapped folders).
+2026-03-03 08:18:58  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-03 08:26:45  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-03 08:42:07  INFO      Found: C:\FileLanding\ABC\test_20260303_084140_01.txt
+2026-03-03 08:42:07  INFO      Copied: C:\FileLanding\ABC\test_20260303_084140_01.txt \u2192 C:\FileDest\ABC\test_20260303_084140_01.txt
+2026-03-03 08:42:07  INFO      Found: C:\FileLanding\ABC\test_20260303_084140_02.txt
+2026-03-03 08:42:07  INFO      Copied: C:\FileLanding\ABC\test_20260303_084140_02.txt \u2192 C:\FileDest\ABC\test_20260303_084140_02.txt
+2026-03-03 08:42:07  INFO      Found: C:\FileLanding\ABC\test_20260303_084140_03.txt
+2026-03-03 08:42:07  INFO      Copied: C:\FileLanding\ABC\test_20260303_084140_03.txt \u2192 C:\FileDest\ABC\test_20260303_084140_03.txt
+2026-03-03 08:42:07  INFO      Found: C:\FileLanding\ABC\test_20260303_084140_04.txt
+2026-03-03 08:42:07  INFO      Copied: C:\FileLanding\ABC\test_20260303_084140_04.txt \u2192 C:\FileDest\ABC\test_20260303_084140_04.txt
+2026-03-03 08:42:07  INFO      Run complete: 4 copied, 0 skipped.
+2026-03-03 08:59:11  INFO      Found: C:\FileLanding\GHI\test_20260303_085829_01.txt
+2026-03-03 08:59:11  INFO      Copied: C:\FileLanding\GHI\test_20260303_085829_01.txt \u2192 C:\FileDest\GHI\test_20260303_085829_01.txt
+2026-03-03 08:59:11  INFO      Found: C:\FileLanding\GHI\test_20260303_085829_02.txt
+2026-03-03 08:59:11  INFO      Copied: C:\FileLanding\GHI\test_20260303_085829_02.txt \u2192 C:\FileDest\GHI\test_20260303_085829_02.txt
+2026-03-03 08:59:11  INFO      Found: C:\FileLanding\GHI\test_20260303_085829_03.txt
+2026-03-03 08:59:11  INFO      Copied: C:\FileLanding\GHI\test_20260303_085829_03.txt \u2192 C:\FileDest\GHI\test_20260303_085829_03.txt
+2026-03-03 08:59:11  INFO      Run complete: 3 copied, 0 skipped.
+2026-03-03 09:58:49  INFO      Created backup folder: C:\FileDest\JKL
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_01.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_01.txt \u2192 C:\FileDest\DEF\test_20260303_095947_01.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_02.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_02.txt \u2192 C:\FileDest\DEF\test_20260303_095947_02.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_03.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_03.txt \u2192 C:\FileDest\DEF\test_20260303_095947_03.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_04.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_04.txt \u2192 C:\FileDest\DEF\test_20260303_095947_04.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_05.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_05.txt \u2192 C:\FileDest\DEF\test_20260303_095947_05.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_06.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_06.txt \u2192 C:\FileDest\DEF\test_20260303_095947_06.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_07.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_07.txt \u2192 C:\FileDest\DEF\test_20260303_095947_07.txt
+2026-03-03 09:59:59  INFO      Found: C:\FileLanding\DEF\test_20260303_095947_08.txt
+2026-03-03 09:59:59  INFO      Copied: C:\FileLanding\DEF\test_20260303_095947_08.txt \u2192 C:\FileDest\DEF\test_20260303_095947_08.txt
+2026-03-03 09:59:59  INFO      Run complete: 8 copied, 0 skipped.
+2026-03-03 10:03:38  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-03 12:48:21  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_01.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_01.txt \u2192 C:\FileDest\ABC\test_20260303_154356_01.txt
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_02.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_02.txt \u2192 C:\FileDest\ABC\test_20260303_154356_02.txt
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_03.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_03.txt \u2192 C:\FileDest\ABC\test_20260303_154356_03.txt
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_04.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_04.txt \u2192 C:\FileDest\ABC\test_20260303_154356_04.txt
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_05.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_05.txt \u2192 C:\FileDest\ABC\test_20260303_154356_05.txt
+2026-03-03 15:44:03  INFO      Found: C:\FileLanding\ABC\test_20260303_154356_06.txt
+2026-03-03 15:44:03  INFO      Copied: C:\FileLanding\ABC\test_20260303_154356_06.txt \u2192 C:\FileDest\ABC\test_20260303_154356_06.txt
+2026-03-03 15:44:03  INFO      Run complete: 6 copied, 0 skipped.
+2026-03-03 15:44:58  INFO      Created backup folder: C:\FileDest\MNO
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_01.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_01.txt \u2192 C:\FileDest\MNO\test_20260308_215339_01.txt
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_02.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_02.txt \u2192 C:\FileDest\MNO\test_20260308_215339_02.txt
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_03.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_03.txt \u2192 C:\FileDest\MNO\test_20260308_215339_03.txt
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_04.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_04.txt \u2192 C:\FileDest\MNO\test_20260308_215339_04.txt
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_05.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_05.txt \u2192 C:\FileDest\MNO\test_20260308_215339_05.txt
+2026-03-08 21:53:43  INFO      Found: C:\FileLanding\MNO\test_20260308_215339_06.txt
+2026-03-08 21:53:43  INFO      Copied: C:\FileLanding\MNO\test_20260308_215339_06.txt \u2192 C:\FileDest\MNO\test_20260308_215339_06.txt
+2026-03-08 21:53:43  INFO      Run complete: 6 copied, 0 skipped.

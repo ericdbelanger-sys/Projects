@@ -1,0 +1,10 @@
+TXN001|2024-01-15|DEBIT|150.00|Grocery Store|Visa-4421|Completed
+TXN002|2024-01-16|CREDIT|2500.00|Payroll Direct Deposit|Bank Transfer|Completed
+TXN003|2024-01-17|DEBIT|45.99|Gas Station|Visa-4421|Completed
+TXN004|2024-01-18|DEBIT|299.00|Online Shopping|Mastercard-8812|Pending
+TXN005|2024-01-19|CREDIT|100.00|Refund - Order #9923|Mastercard-8812|Completed
+TXN006|2024-01-20|DEBIT|12.49|Coffee Shop|Visa-4421|Completed
+TXN007|2024-01-21|DEBIT|550.00|Rent Payment|Bank Transfer|Completed
+TXN008|2024-01-22|DEBIT|89.99|Streaming Subscriptions|Visa-4421|Completed
+TXN009|2024-01-23|CREDIT|75.00|Cashback Reward|Mastercard-8812|Completed
+TXN010|2024-01-24|DEBIT|210.00|Utility Bill|Bank Transfer|Pending
