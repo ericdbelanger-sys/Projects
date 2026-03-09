@@ -384,6 +384,40 @@ def _sniff_csv(file: Path) -> tuple[str, int]:
     return delimiter, skip_header
 
 
+# ── Tooltip ───────────────────────────────────────────────────────────────────
+
+class ToolTip:
+    """Small hover tooltip that appears below a widget."""
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self._widget  = widget
+        self._text    = text
+        self._window  = None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+
+    def _show(self, _event=None) -> None:
+        """Display the tooltip just below the widget."""
+        if self._window:
+            return
+        x = self._widget.winfo_rootx() + 20
+        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
+        self._window = tw = tk.Toplevel(self._widget)
+        tw.wm_overrideredirect(True)   # borderless window
+        tw.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            tw, text=self._text, justify=tk.LEFT,
+            background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+            font=("Segoe UI", 8),
+        ).pack(ipadx=4, ipady=2)
+
+    def _hide(self, _event=None) -> None:
+        """Destroy the tooltip window."""
+        if self._window:
+            self._window.destroy()
+            self._window = None
+
+
 # ── GUI ───────────────────────────────────────────────────────────────────────
 
 class FileManagerApp(tk.Tk):
@@ -442,12 +476,15 @@ class FileManagerApp(tk.Tk):
             command=self._on_get_files,
         )
         self.btn_get.pack(side=tk.LEFT, padx=(0, 6))
+        ToolTip(self.btn_get, "Scan source folders for new files and copy them to their mapped backup destinations")
 
-        tk.Button(
+        btn_clear = tk.Button(
             btn_frame, text="Clear Log",
             width=10,
             command=self._clear_log,
-        ).pack(side=tk.LEFT)
+        )
+        btn_clear.pack(side=tk.LEFT)
+        ToolTip(btn_clear, "Clear the on-screen log (the log file on disk is not affected)")
 
         # Live log output area
         self.log_area = scrolledtext.ScrolledText(
@@ -474,8 +511,9 @@ class FileManagerApp(tk.Tk):
         ttk.Entry(frame, textvariable=self.backup_dir_var, width=48
                   ).grid(row=0, column=1, sticky=tk.EW, padx=(0, 4), pady=4)
 
-        ttk.Button(frame, text="Browse…", command=self._browse_backup_dir
-                   ).grid(row=0, column=2, padx=(0, 10), pady=4)
+        btn_browse = ttk.Button(frame, text="Browse…", command=self._browse_backup_dir)
+        btn_browse.grid(row=0, column=2, padx=(0, 10), pady=4)
+        ToolTip(btn_browse, "Open a folder picker to select the backup root directory")
 
         # ── Folder mappings table ─────────────────────────────────────────────
         ttk.Label(frame, text="Folder Mappings:", font=("Segoe UI", 9, "bold")
@@ -518,24 +556,29 @@ class FileManagerApp(tk.Tk):
         ttk.Entry(add_frame, textvariable=self.new_dest_var, width=18
                   ).pack(side=tk.LEFT, padx=(4, 8))
 
-        ttk.Button(add_frame, text="Add", command=self._add_mapping
-                   ).pack(side=tk.LEFT)
+        btn_add = ttk.Button(add_frame, text="Add", command=self._add_mapping)
+        btn_add.pack(side=tk.LEFT)
+        ToolTip(btn_add, "Add this source → destination mapping to the table")
 
         # ── Bottom action buttons ─────────────────────────────────────────────
         action_frame = tk.Frame(frame, pady=6)
         action_frame.grid(row=5, column=0, columnspan=3, sticky=tk.EW, padx=10)
 
-        ttk.Button(action_frame, text="Remove Selected",
-                   command=self._remove_mapping).pack(side=tk.LEFT, padx=(0, 8))
+        btn_remove = ttk.Button(action_frame, text="Remove Selected", command=self._remove_mapping)
+        btn_remove.pack(side=tk.LEFT, padx=(0, 8))
+        ToolTip(btn_remove, "Delete the selected row from the mapping table")
 
-        ttk.Button(action_frame, text="Create Backup Folders",
-                   command=self._create_backup_folders).pack(side=tk.LEFT, padx=(0, 8))
+        btn_create = ttk.Button(action_frame, text="Create Backup Folders", command=self._create_backup_folders)
+        btn_create.pack(side=tk.LEFT, padx=(0, 8))
+        ToolTip(btn_create, "Create any missing destination folders on disk under the backup root directory")
 
-        tk.Button(
+        btn_save = tk.Button(
             action_frame, text="Save Settings",
             bg="#2d7dd2", fg="white", font=("Segoe UI", 9, "bold"),
             command=self._save_settings,
-        ).pack(side=tk.RIGHT)
+        )
+        btn_save.pack(side=tk.RIGHT)
+        ToolTip(btn_save, "Write backup directory and folder mappings to config.json")
 
         # Allow the treeview column to stretch when the window is resized
         frame.columnconfigure(1, weight=1)
@@ -606,14 +649,16 @@ class FileManagerApp(tk.Tk):
             row=5, column=0, columnspan=3, sticky=tk.EW, padx=12, pady=(8, 4)
         )
 
-        tk.Button(
+        btn_demo = tk.Button(
             frame,
             text="Create Test Files",
             bg="#2d7dd2", fg="white",
             font=("Segoe UI", 10, "bold"),
             width=18,
             command=self._on_demo_create,
-        ).grid(row=6, column=0, columnspan=3, pady=(4, 4))
+        )
+        btn_demo.grid(row=6, column=0, columnspan=3, pady=(4, 4))
+        ToolTip(btn_demo, "Generate random CSV, TXT, and NDJSON files with mock data in the selected source folder")
 
         # ── Output area ───────────────────────────────────────────────────────
         self.demo_output = tk.Text(
@@ -699,8 +744,9 @@ class FileManagerApp(tk.Tk):
         # Refresh button
         btn_frame = tk.Frame(frame, pady=6)
         btn_frame.pack(fill=tk.X, padx=8)
-        tk.Button(btn_frame, text="Refresh", width=10,
-                  command=self._refresh_log_tab).pack(side=tk.LEFT)
+        btn_log_refresh = tk.Button(btn_frame, text="Refresh", width=10, command=self._refresh_log_tab)
+        btn_log_refresh.pack(side=tk.LEFT)
+        ToolTip(btn_log_refresh, "Reload the contents of file_manager.log")
 
         self.log_file_area = scrolledtext.ScrolledText(
             frame, wrap=tk.NONE,      # no-wrap so long lines stay readable
@@ -1054,10 +1100,13 @@ class FileManagerApp(tk.Tk):
         self.sql_db_combo.bind("<<ComboboxSelected>>",
                                lambda _e: self._load_stored_procedures())
 
-        ttk.Button(row1, text="Test Connection",
-                   command=self._test_sql_connection).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(row1, text="Save",
-                   command=self._save_sql_connection).pack(side=tk.LEFT)
+        btn_test = ttk.Button(row1, text="Test Connection", command=self._test_sql_connection)
+        btn_test.pack(side=tk.LEFT, padx=(0, 6))
+        ToolTip(btn_test, "Connect to SQL Server and populate the Database and Stored Procedure dropdowns")
+
+        btn_sql_save = ttk.Button(row1, text="Save", command=self._save_sql_connection)
+        btn_sql_save.pack(side=tk.LEFT)
+        ToolTip(btn_sql_save, "Save the server and database name to config.json")
 
         # Row 2: connection status label (green = ok, red = error)
         self.sql_conn_status = ttk.Label(
@@ -1109,6 +1158,8 @@ class FileManagerApp(tk.Tk):
             width=16, command=self._on_sql_import,
         )
         self.btn_sql_import.pack(side=tk.LEFT)
+        ToolTip(self.btn_sql_import,
+                "Scan backup folders and import new files into SQL staging tables via the selected stored procedure")
 
         ttk.Label(
             import_frame,
@@ -1136,10 +1187,9 @@ class FileManagerApp(tk.Tk):
             font=("Segoe UI", 9, "bold"),
         ).pack(side=tk.LEFT)
 
-        ttk.Button(
-            log_hdr, text="Refresh",
-            command=self._refresh_sql_import_log,
-        ).pack(side=tk.RIGHT)
+        btn_log_grid_refresh = ttk.Button(log_hdr, text="Refresh", command=self._refresh_sql_import_log)
+        btn_log_grid_refresh.pack(side=tk.RIGHT)
+        ToolTip(btn_log_grid_refresh, "Reload the import log grid from import.FileImportLog")
 
         # ── Import log treeview ───────────────────────────────────────────────
         cols = ("import_id", "imported_at", "source_folder", "file_name",
@@ -1619,6 +1669,7 @@ class FileManagerApp(tk.Tk):
             width=10, command=self._on_inspect,
         )
         self.btn_inspect.pack(side=tk.LEFT)
+        ToolTip(self.btn_inspect, "Analyse the selected file and display column/key statistics")
 
         # ── Output area ───────────────────────────────────────────────────────
         self.insp_output = scrolledtext.ScrolledText(
