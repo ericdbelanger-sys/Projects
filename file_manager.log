@@ -93,3 +93,31 @@
 2026-03-08 23:20:54  INFO      Found: C:\FileLanding\DEF\test_20260308_232041_05.ndjson
 2026-03-08 23:20:54  INFO      Copied: C:\FileLanding\DEF\test_20260308_232041_05.ndjson \u2192 C:\FileDest\DEF\test_20260308_232041_05.ndjson
 2026-03-08 23:20:54  INFO      Run complete: 5 copied, 0 skipped.
+2026-03-08 23:48:52  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-08 23:49:03  INFO      Run complete: 0 copied, 0 skipped.
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_01.csv
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_01.csv \u2192 C:\FileDest\JKL\test_20260308_234907_01.csv
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_02.csv
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_02.csv \u2192 C:\FileDest\JKL\test_20260308_234907_02.csv
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_03.ndjson
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_03.ndjson \u2192 C:\FileDest\JKL\test_20260308_234907_03.ndjson
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_04.ndjson
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_04.ndjson \u2192 C:\FileDest\JKL\test_20260308_234907_04.ndjson
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_05.csv
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_05.csv \u2192 C:\FileDest\JKL\test_20260308_234907_05.csv
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_06.ndjson
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_06.ndjson \u2192 C:\FileDest\JKL\test_20260308_234907_06.ndjson
+2026-03-08 23:49:12  INFO      Found: C:\FileLanding\JKL\test_20260308_234907_07.csv
+2026-03-08 23:49:12  INFO      Copied: C:\FileLanding\JKL\test_20260308_234907_07.csv \u2192 C:\FileDest\JKL\test_20260308_234907_07.csv
+2026-03-08 23:49:12  INFO      Run complete: 7 copied, 0 skipped.
+2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_01.csv
+2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_01.csv \u2192 C:\FileDest\PQR\test_20260312_220305_01.csv
+2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_02.csv
+2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_02.csv \u2192 C:\FileDest\PQR\test_20260312_220305_02.csv
+2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_03.csv
+2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_03.csv \u2192 C:\FileDest\PQR\test_20260312_220305_03.csv
+2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_04.ndjson
+2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_04.ndjson \u2192 C:\FileDest\PQR\test_20260312_220305_04.ndjson
+2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_05.ndjson
+2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_05.ndjson \u2192 C:\FileDest\PQR\test_20260312_220305_05.ndjson
+2026-03-12 22:03:09  INFO      Run complete: 5 copied, 0 skipped.

@@ -3,6 +3,7 @@ import ctypes.wintypes
 import json
 import logging
 import random
+import re
 import shutil
 import threading
 import tkinter as tk
@@ -450,12 +451,12 @@ class FileManagerApp(tk.Tk):
 
         self._build_main_tab()
         self._build_settings_tab()
-        self._build_demo_tab()
         self._build_run_history_tab()
         self._build_file_history_tab()
         self._build_log_tab()
         self._build_sql_import_tab()
         self._build_file_inspector_tab()
+        self._build_demo_tab()
 
         # Refresh tabs whenever they are switched to
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
@@ -777,9 +778,8 @@ class FileManagerApp(tk.Tk):
             self._refresh_file_history()
         elif tab_name == "Log File":
             self._refresh_log_tab()
-        elif tab_name == "SQL Import":
-            self._refresh_sql_import_log()
-            self._refresh_sql_import_folders()
+        elif tab_name == "SQL Runner":
+            pass  # no auto-refresh needed; connection is on-demand
         elif tab_name == "File Inspector":
             self._refresh_inspector_folders()
 
@@ -1061,9 +1061,9 @@ class FileManagerApp(tk.Tk):
     # ── SQL Import tab ────────────────────────────────────────────────────────
 
     def _build_sql_import_tab(self):
-        """SQL Import tab — connect to SQL Server, import files, view import log."""
+        """SQL Runner tab — connect to SQL Server, pick a database and SP, execute it."""
         frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  SQL Import  ")
+        self.notebook.add(frame, text="  SQL Runner  ")
 
         # Show a friendly message if pyodbc is not installed
         if not PYODBC_AVAILABLE:
@@ -1081,7 +1081,6 @@ class FileManagerApp(tk.Tk):
         conn_frame = ttk.LabelFrame(frame, text=" Database Connection ", padding=6)
         conn_frame.pack(fill=tk.X, padx=8, pady=(6, 4))
 
-        # Row 1: server, database, buttons
         row1 = tk.Frame(conn_frame)
         row1.pack(fill=tk.X)
 
@@ -1092,11 +1091,9 @@ class FileManagerApp(tk.Tk):
 
         ttk.Label(row1, text="Database:").pack(side=tk.LEFT, padx=(0, 4))
         self.sql_db_var   = tk.StringVar()
-        self.sql_db_combo = ttk.Combobox(
-            row1, textvariable=self.sql_db_var, width=22,
-        )
+        self.sql_db_combo = ttk.Combobox(row1, textvariable=self.sql_db_var, width=22)
         self.sql_db_combo.pack(side=tk.LEFT, padx=(0, 12))
-        # Refresh the SP list whenever the user selects a different database
+        # Reload SP list whenever a different database is selected
         self.sql_db_combo.bind("<<ComboboxSelected>>",
                                lambda _e: self._load_stored_procedures())
 
@@ -1108,128 +1105,67 @@ class FileManagerApp(tk.Tk):
         btn_sql_save.pack(side=tk.LEFT)
         ToolTip(btn_sql_save, "Save the server and database name to config.json")
 
-        # Row 2: connection status label (green = ok, red = error)
+        # Connection status indicator
         self.sql_conn_status = ttk.Label(
             conn_frame, text="Not connected",
             foreground="#888", font=("Segoe UI", 8),
         )
         self.sql_conn_status.pack(anchor=tk.W, pady=(4, 0))
 
-        # ── Import controls ───────────────────────────────────────────────────
-        import_frame = ttk.LabelFrame(frame, text=" Import Files to SQL Staging ", padding=6)
-        import_frame.pack(fill=tk.X, padx=8, pady=(0, 4))
+        # ── SP picker + Execute ───────────────────────────────────────────────
+        run_frame = ttk.LabelFrame(frame, text=" Execute Stored Procedure ", padding=6)
+        run_frame.pack(fill=tk.X, padx=8, pady=(0, 4))
 
-        ctrl_row = tk.Frame(import_frame)
-        ctrl_row.pack(fill=tk.X)
-
-        # Row 1: folder + file type
-        ttk.Label(ctrl_row, text="Folder:").pack(side=tk.LEFT, padx=(0, 4))
-        self.sql_folder_var = tk.StringVar(value="All Folders")
-        self.sql_folder_combo = ttk.Combobox(
-            ctrl_row, textvariable=self.sql_folder_var,
-            state="readonly", width=18,
-        )
-        self.sql_folder_combo.pack(side=tk.LEFT, padx=(0, 12))
-
-        ttk.Label(ctrl_row, text="File type:").pack(side=tk.LEFT, padx=(0, 4))
-        self.sql_filetype_var = tk.StringVar(value="Auto-detect")
-        ttk.Combobox(
-            ctrl_row, textvariable=self.sql_filetype_var,
-            values=["Auto-detect", "CSV", "NDJSON"],
-            state="readonly", width=12,
-        ).pack(side=tk.LEFT, padx=(0, 12))
-
-        # Row 2: stored procedure picker + run button
-        sp_row = tk.Frame(import_frame)
-        sp_row.pack(fill=tk.X, pady=(4, 0))
+        sp_row = tk.Frame(run_frame)
+        sp_row.pack(fill=tk.X)
 
         ttk.Label(sp_row, text="Stored Procedure:").pack(side=tk.LEFT, padx=(0, 4))
-        self.sql_sp_var   = tk.StringVar(value="Auto-detect")
+        self.sql_sp_var   = tk.StringVar()
         self.sql_sp_combo = ttk.Combobox(
-            sp_row, textvariable=self.sql_sp_var,
-            values=["Auto-detect"], state="readonly", width=36,
+            sp_row, textvariable=self.sql_sp_var, state="readonly", width=40,
         )
         self.sql_sp_combo.pack(side=tk.LEFT, padx=(0, 12))
+        # Load parameter fields whenever the SP selection changes
+        self.sql_sp_combo.bind("<<ComboboxSelected>>",
+                               lambda *_: self._load_sp_parameters())
 
         self.btn_sql_import = tk.Button(
             sp_row,
-            text="Run SQL Import",
+            text="Execute",
             bg="#2d7dd2", fg="white", font=("Segoe UI", 10, "bold"),
-            width=16, command=self._on_sql_import,
+            width=10, command=self._on_sql_import,
         )
-        self.btn_sql_import.pack(side=tk.LEFT)
-        ToolTip(self.btn_sql_import,
-                "Scan backup folders and import new files into SQL staging tables via the selected stored procedure")
+        self.btn_sql_import.pack(side=tk.LEFT, padx=(0, 10))
+        ToolTip(self.btn_sql_import, "Execute the selected stored procedure against the selected database")
 
-        ttk.Label(
-            import_frame,
-            text="Scans backup folders and imports files into staging.RawCSV / staging.RawJSON. "
-                 "Files already in the import log are skipped.",
-            foreground="#666", font=("Segoe UI", 8),
-        ).pack(anchor=tk.W, pady=(4, 0))
+        # Inline result label — shows Success ✓ or Error ✗ after each run
+        self.sql_exec_status = ttk.Label(sp_row, text="", font=("Segoe UI", 9, "bold"))
+        self.sql_exec_status.pack(side=tk.LEFT)
 
-        # ── Live log output ───────────────────────────────────────────────────
+        # ── Dynamic parameter fields (rebuilt when SP is selected) ────────────
+        self.sql_params_frame = ttk.LabelFrame(run_frame, text=" Parameters ", padding=6)
+        self.sql_params_frame.pack(fill=tk.X, pady=(6, 0))
+
+        # Placeholder shown before an SP is chosen
+        self._sql_params_hint = ttk.Label(
+            self.sql_params_frame,
+            text="Select a stored procedure to load its parameters.",
+            foreground="#888", font=("Segoe UI", 8, "italic"),
+        )
+        self._sql_params_hint.pack(anchor=tk.W)
+
+        # List of (param_name, data_type, tk.StringVar) for the current SP
+        self._sql_param_entries: list[tuple[str, str, tk.StringVar]] = []
+
+        # ── Output log ────────────────────────────────────────────────────────
         self.sql_log_area = scrolledtext.ScrolledText(
-            frame, height=7, wrap=tk.WORD,
+            frame, height=16, wrap=tk.WORD,
             state=tk.DISABLED,
             font=("Consolas", 9),
             bg="#1e1e1e", fg="#d4d4d4",
             insertbackground="white",
         )
-        self.sql_log_area.pack(fill=tk.X, padx=8, pady=(0, 4))
-
-        # ── Import log grid header ────────────────────────────────────────────
-        log_hdr = tk.Frame(frame)
-        log_hdr.pack(fill=tk.X, padx=8, pady=(0, 2))
-
-        ttk.Label(
-            log_hdr, text="Import Log  (from database)",
-            font=("Segoe UI", 9, "bold"),
-        ).pack(side=tk.LEFT)
-
-        btn_log_grid_refresh = ttk.Button(log_hdr, text="Refresh", command=self._refresh_sql_import_log)
-        btn_log_grid_refresh.pack(side=tk.RIGHT)
-        ToolTip(btn_log_grid_refresh, "Reload the import log grid from import.FileImportLog")
-
-        # ── Import log treeview ───────────────────────────────────────────────
-        cols = ("import_id", "imported_at", "source_folder", "file_name",
-                "type", "destination", "loaded", "valid", "rejected", "status")
-
-        self.sql_log_tree = ttk.Treeview(
-            frame, columns=cols, show="headings",
-            selectmode="browse", height=6,
-        )
-
-        self.sql_log_tree.heading("import_id",     text="ID")
-        self.sql_log_tree.heading("imported_at",   text="Imported At")
-        self.sql_log_tree.heading("source_folder", text="Source")
-        self.sql_log_tree.heading("file_name",     text="File")
-        self.sql_log_tree.heading("type",          text="Type")
-        self.sql_log_tree.heading("destination",   text="Destination")
-        self.sql_log_tree.heading("loaded",        text="Loaded")
-        self.sql_log_tree.heading("valid",         text="Valid")
-        self.sql_log_tree.heading("rejected",      text="Rejected")
-        self.sql_log_tree.heading("status",        text="Status")
-
-        self.sql_log_tree.column("import_id",     width=40,  anchor=tk.CENTER)
-        self.sql_log_tree.column("imported_at",   width=145, anchor=tk.W)
-        self.sql_log_tree.column("source_folder", width=70,  anchor=tk.CENTER)
-        self.sql_log_tree.column("file_name",     width=180, anchor=tk.W)
-        self.sql_log_tree.column("type",          width=50,  anchor=tk.CENTER)
-        self.sql_log_tree.column("destination",   width=120, anchor=tk.W)
-        self.sql_log_tree.column("loaded",        width=55,  anchor=tk.CENTER)
-        self.sql_log_tree.column("valid",         width=50,  anchor=tk.CENTER)
-        self.sql_log_tree.column("rejected",      width=65,  anchor=tk.CENTER)
-        self.sql_log_tree.column("status",        width=90,  anchor=tk.CENTER)
-
-        vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL,   command=self.sql_log_tree.yview)
-        hsb = ttk.Scrollbar(frame, orient=tk.HORIZONTAL, command=self.sql_log_tree.xview)
-        self.sql_log_tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-
-        self.sql_log_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
-                               padx=(8, 0), pady=(0, 0))
-        vsb.pack(side=tk.LEFT, fill=tk.Y, pady=(0, 0), padx=(0, 8))
-        hsb.pack(side=tk.BOTTOM, fill=tk.X, padx=(8, 8), pady=(0, 8))
+        self.sql_log_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
 
         # Load any saved connection settings into the form
         self._load_sql_connection_settings()
@@ -1324,7 +1260,7 @@ class FileManagerApp(tk.Tk):
 
         Opens a fresh connection so this can be called independently of Test Connection.
         Silently no-ops if the Server or Database fields are empty or the connection fails.
-        Resets the selection to 'Auto-detect' if the previously selected SP is gone.
+        Resets the selection to the first SP if the previously selected one is gone.
         """
         if not PYODBC_AVAILABLE:
             return
@@ -1347,12 +1283,183 @@ class FileManagerApp(tk.Tk):
         except Exception:
             return  # leave dropdown unchanged on any error
 
-        values  = ["Auto-detect"] + sp_names
         current = self.sql_sp_var.get()
-        self.sql_sp_combo.config(values=values)
+        self.sql_sp_combo.config(values=sp_names)
 
-        if current not in values:
-            self.sql_sp_var.set("Auto-detect")
+        # Keep the current selection if it still exists, otherwise pick the first one
+        if current not in sp_names:
+            self.sql_sp_var.set(sp_names[0] if sp_names else "")
+
+    def _load_sp_parameters(self) -> None:
+        """Query sys.parameters + sys.sql_modules for the selected SP.
+
+        Rebuilds the parameter fields and pre-fills any values found in a
+        commented exec example inside the SP definition, e.g.:
+            -- exec Stage @system = 'ABC', @date = '2024-01-01'
+        """
+        if not PYODBC_AVAILABLE:
+            return
+        sp = self.sql_sp_var.get().strip()
+        if not sp:
+            return
+        try:
+            conn_str = self._get_sql_conn_str()
+        except ValueError:
+            return
+
+        try:
+            conn   = pyodbc.connect(conn_str, timeout=5)
+            cursor = conn.cursor()
+
+            # Fetch parameter names and types
+            cursor.execute(
+                "SELECT name, TYPE_NAME(user_type_id) "
+                "FROM sys.parameters "
+                "WHERE object_id = OBJECT_ID(?) AND name <> '' "
+                "ORDER BY parameter_id",
+                sp,
+            )
+            params = [(row[0], row[1]) for row in cursor.fetchall()]
+
+            # Fetch the SP source text to scan for a commented exec example
+            cursor.execute(
+                "SELECT definition FROM sys.sql_modules WHERE object_id = OBJECT_ID(?)",
+                sp,
+            )
+            row        = cursor.fetchone()
+            definition = row[0] if row else ""
+            cursor.close()
+            conn.close()
+        except Exception:
+            params     = []
+            definition = ""
+
+        # Scan every comment line for:  -- exec <anything> @param = value ...
+        # Collect ALL matching lines as separate presets.
+        exec_pattern  = re.compile(r"--\s*exec\s+\S.*?(@\w+\s*=.+)", re.IGNORECASE)
+        param_pattern = re.compile(r"(@\w+)\s*=\s*(?:'([^']*)'|(\S+?)(?:,|$))")
+
+        presets: list[dict[str, str]] = []   # one dict per exec comment line
+        preset_labels: list[str]      = []   # human-readable label for each
+
+        for line in definition.splitlines():
+            m = exec_pattern.search(line)
+            if m:
+                param_str = m.group(1).strip()
+                values: dict[str, str] = {}
+                for pm in param_pattern.finditer(param_str):
+                    name  = pm.group(1).lower()
+                    value = pm.group(2) if pm.group(2) is not None else pm.group(3)
+                    values[name] = value.strip()
+                if values:
+                    presets.append(values)
+                    preset_labels.append(param_str)
+
+        self._rebuild_param_fields(params, presets, preset_labels)
+
+    def _rebuild_param_fields(
+        self,
+        params: list[tuple[str, str]],
+        presets: list[dict[str, str]] | None = None,
+        preset_labels: list[str] | None = None,
+    ) -> None:
+        """Clear the parameter panel and render one input row per parameter.
+
+        If one preset is found it pre-fills silently.
+        If multiple presets are found a Presets dropdown is shown so the user
+        can switch between them — each selection loads that preset's values.
+        """
+        for widget in self.sql_params_frame.winfo_children():
+            widget.destroy()
+        self._sql_param_entries = []
+        if presets is None:
+            presets = []
+        if preset_labels is None:
+            preset_labels = []
+
+        if not params:
+            ttk.Label(
+                self.sql_params_frame,
+                text="No parameters — this SP runs without any input.",
+                foreground="#888", font=("Segoe UI", 8, "italic"),
+            ).pack(anchor=tk.W)
+            return
+
+        # ── Presets row (only shown when exec comments were found) ────────────
+        if len(presets) > 1:
+            preset_row = tk.Frame(self.sql_params_frame)
+            preset_row.pack(fill=tk.X, pady=(0, 6))
+
+            ttk.Label(preset_row, text="Preset:").pack(side=tk.LEFT, padx=(0, 6))
+            self._preset_var = tk.StringVar()
+            preset_combo = ttk.Combobox(
+                preset_row,
+                textvariable=self._preset_var,
+                values=preset_labels,
+                state="readonly",
+                width=55,
+            )
+            preset_combo.pack(side=tk.LEFT)
+            # Loading a preset fills the entry fields below
+            preset_combo.bind(
+                "<<ComboboxSelected>>",
+                lambda *_: self._apply_preset(presets, self._preset_var.get(), preset_labels),
+            )
+            ttk.Label(
+                preset_row,
+                text="← pick one to load values",
+                foreground="#888", font=("Segoe UI", 8, "italic"),
+            ).pack(side=tk.LEFT, padx=(6, 0))
+
+        elif len(presets) == 1:
+            # Single preset — show a quiet confirmation label
+            ttk.Label(
+                self.sql_params_frame,
+                text="Values pre-filled from exec comment — edit as needed.",
+                foreground="#5a8a5a", font=("Segoe UI", 8, "italic"),
+            ).pack(anchor=tk.W, pady=(0, 4))
+
+        # ── One entry row per parameter ───────────────────────────────────────
+        first_prefill = presets[0] if presets else {}
+
+        for param_name, data_type in params:
+            row = tk.Frame(self.sql_params_frame)
+            row.pack(fill=tk.X, pady=2)
+
+            ttk.Label(
+                row,
+                text=param_name,
+                font=("Segoe UI", 9, "bold"),
+                width=24, anchor=tk.W,
+            ).pack(side=tk.LEFT, padx=(0, 4))
+
+            ttk.Label(
+                row,
+                text=f"({data_type})",
+                foreground="#888", font=("Segoe UI", 8),
+                width=12, anchor=tk.W,
+            ).pack(side=tk.LEFT, padx=(0, 8))
+
+            var = tk.StringVar()
+            var.set(first_prefill.get(param_name.lower(), ""))
+            ttk.Entry(row, textvariable=var, width=36).pack(side=tk.LEFT)
+
+            self._sql_param_entries.append((param_name, data_type, var))
+
+    def _apply_preset(
+        self,
+        presets: list[dict[str, str]],
+        selected_label: str,
+        preset_labels: list[str],
+    ) -> None:
+        """Load a preset's values into the parameter entry fields."""
+        try:
+            idx = preset_labels.index(selected_label)
+        except ValueError:
+            return
+        values = presets[idx]
+        for param_name, _, var in self._sql_param_entries:
+            var.set(values.get(param_name.lower(), ""))
 
     def _save_sql_connection(self):
         """Persist server and database names to config.json under sql_connection."""
@@ -1378,26 +1485,18 @@ class FileManagerApp(tk.Tk):
 
     # ── SQL Import helpers ─────────────────────────────────────────────────────
 
-    def _refresh_sql_import_folders(self):
-        """Rebuild the folder dropdown from the backup subfolder names in config."""
-        try:
-            config = load_config()
-        except Exception:
+    def _on_sql_import(self):
+        """Validate inputs, clear the log, then run the SP in a background thread."""
+        sp = self.sql_sp_var.get().strip()
+        if not sp:
+            messagebox.showwarning("No SP Selected",
+                                   "Please select a stored procedure first.")
             return
 
-        # Use the destination (backup) subfolder names, not the source names
-        dest_folders = list(config.get("folder_map", {}).values())
-        values = ["All Folders"] + dest_folders
+        self.btn_sql_import.config(state=tk.DISABLED, text="Running…")
+        self.sql_exec_status.config(text="", foreground="#888")
 
-        self.sql_folder_combo.config(values=values)
-        if self.sql_folder_var.get() not in values:
-            self.sql_folder_var.set("All Folders")
-
-    def _on_sql_import(self):
-        """Disable the import button and run the import in a background thread."""
-        self.btn_sql_import.config(state=tk.DISABLED, text="Importing…")
-
-        # Clear the live log before starting
+        # Clear the output log before each run
         self.sql_log_area.config(state=tk.NORMAL)
         self.sql_log_area.delete("1.0", tk.END)
         self.sql_log_area.config(state=tk.DISABLED)
@@ -1406,146 +1505,102 @@ class FileManagerApp(tk.Tk):
             try:
                 self._do_sql_import()
             finally:
-                # Re-enable the button and refresh the log grid when done
                 self.after(0, lambda: self.btn_sql_import.config(
-                    state=tk.NORMAL, text="Run SQL Import"
+                    state=tk.NORMAL, text="Execute"
                 ))
-                self.after(0, self._refresh_sql_import_log)
 
         threading.Thread(target=run, daemon=True).start()
 
     def _do_sql_import(self):
-        """Core import logic — runs in a background thread.
+        """Connect and execute the selected SP. Runs in a background thread."""
+        sp = self.sql_sp_var.get().strip()
 
-        Scans the selected backup folder(s), skips files already in the import log,
-        and calls the appropriate stored procedure for each new file.
-        """
-        try:
-            config     = load_config()
-            backup_dir = Path(config["backup_dir"])
-            folder_map = config.get("folder_map", {})
-        except Exception as e:
-            self._sql_log(f"ERROR: Could not read config — {e}")
-            return
+        # Build parameter string from dynamic fields.
+        # Numeric types are passed unquoted; everything else gets single quotes.
+        numeric_types = {"int", "bigint", "smallint", "tinyint", "bit",
+                         "float", "real", "decimal", "numeric", "money", "smallmoney"}
+        parts = []
+        for param_name, data_type, var in self._sql_param_entries:
+            value = var.get().strip()
+            if not value:
+                continue  # skip blank optional params
+            if data_type.lower() in numeric_types:
+                parts.append(f"{param_name} = {value}")
+            else:
+                # Escape any single quotes the user typed inside the value
+                safe_value = value.replace("'", "''")
+                parts.append(f"{param_name} = '{safe_value}'")
 
-        try:
-            conn_str = self._get_sql_conn_str()
-            conn     = pyodbc.connect(conn_str, timeout=10)
-        except Exception as e:
-            self._sql_log(f"ERROR: Could not connect to SQL Server — {e}")
-            return
+        exec_stmt = f"EXEC {sp} {', '.join(parts)}" if parts else f"EXEC {sp}"
 
-        selected_folder = self.sql_folder_var.get()
-        force_type      = self.sql_filetype_var.get()   # 'Auto-detect', 'CSV', 'NDJSON'
-        selected_sp     = self.sql_sp_var.get().strip()
-        use_auto_sp     = (not selected_sp or selected_sp == "Auto-detect")
-
-        # Build the list of backup subfolders to scan
-        if selected_folder == "All Folders":
-            subfolders = list(folder_map.values())
-        else:
-            subfolders = [selected_folder]
-
-        self._sql_log(f"── SQL Import started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ──")
-        self._sql_log(f"Backup dir : {backup_dir}")
-        self._sql_log(f"Folders    : {', '.join(subfolders)}")
+        self._sql_log(f"Executing  {exec_stmt}")
+        self._sql_log(f"Started    {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self._sql_log("")
 
-        total_imported = 0
-        total_skipped  = 0
+        # Connect
+        try:
+            conn = pyodbc.connect(self._get_sql_conn_str(), timeout=10)
+        except Exception as e:
+            self._sql_log(f"Connection error: {e}")
+            self.after(0, lambda: self.sql_exec_status.config(
+                text="Connection failed", foreground="#cc0000"
+            ))
+            return
 
-        cursor = conn.cursor()
+        # Execute
+        try:
+            cursor = conn.cursor()
+            cursor.execute(exec_stmt)
 
-        for subfolder in subfolders:
-            folder_path = backup_dir / subfolder
-            if not folder_path.exists():
-                self._sql_log(f"  SKIP folder '{subfolder}' — not found on disk")
-                continue
-
-            # Collect all files in this backup subfolder
-            files = sorted(p for p in folder_path.rglob("*") if p.is_file())
-            if not files:
-                self._sql_log(f"  [{subfolder}]  No files found")
-                continue
-
-            self._sql_log(f"  [{subfolder}]  {len(files)} file(s) found")
-
-            for file in files:
-                file_str = str(file)
-
-                # Check whether this file is already in the import log
-                cursor.execute(
-                    "SELECT 1 FROM import.FileImportLog "
-                    "WHERE FilePath = ? AND Status <> 'ERROR'",
-                    file_str,
-                )
-                if cursor.fetchone():
-                    self._sql_log(f"    SKIP  {file.name}  (already imported)")
-                    total_skipped += 1
-                    continue
-
-                # Determine file type
-                ext = file.suffix.lower()
-                if force_type == "CSV":
-                    file_type = "csv"
-                elif force_type == "NDJSON":
-                    file_type = "json"
-                else:
-                    # Auto-detect by extension
-                    if ext in (".csv", ".txt"):
-                        file_type = "csv"
-                    elif ext in (".json", ".ndjson"):
-                        file_type = "json"
-                    else:
-                        self._sql_log(f"    SKIP  {file.name}  (unsupported extension {ext})")
-                        total_skipped += 1
-                        continue
-
+            # Collect and display any result sets the SP returns
+            total_rows = 0
+            result_num = 0
+            while True:
                 try:
-                    if not use_auto_sp:
-                        # User picked a specific SP — call it with just @FilePath
-                        self._sql_log(f"    INFO  {file.name}  (SP: {selected_sp})")
-                        cursor.execute(f"EXEC {selected_sp} @FilePath=?", file_str)
-                    elif file_type == "csv":
-                        delimiter, skip_header = _sniff_csv(file)
-                        self._sql_log(
-                            f"    INFO  {file.name}  "
-                            f"(delimiter={repr(delimiter)}, header={bool(skip_header)})"
-                        )
-                        cursor.execute(
-                            "EXEC import.usp_ImportCSVFile "
-                            "@FilePath=?, @Delimiter=?, @SkipHeader=?",
-                            file_str, delimiter, skip_header,
-                        )
-                    else:
-                        cursor.execute(
-                            "EXEC import.usp_ImportJSONFile @FilePath=?",
-                            file_str,
-                        )
+                    rows = cursor.fetchall()
+                except Exception:
+                    rows = []
 
-                    row = cursor.fetchone()
-                    import_id   = row[0] if row else "?"
-                    rows_loaded = row[1] if row else "?"
-                    conn.commit()
+                if rows:
+                    result_num += 1
+                    headers = [desc[0] for desc in cursor.description]
+                    col_widths = [max(len(h), max((len(str(r[i])) for r in rows), default=0))
+                                  for i, h in enumerate(headers)]
 
-                    self._sql_log(
-                        f"    OK    {file.name}  "
-                        f"(ImportId={import_id}, {rows_loaded} row(s) loaded)"
-                    )
-                    total_imported += 1
+                    # Header row
+                    header_line = "  ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
+                    self._sql_log(f"Result set {result_num}:")
+                    self._sql_log(header_line)
+                    self._sql_log("-" * len(header_line))
 
-                except Exception as e:
-                    conn.rollback()
-                    self._sql_log(f"    ERROR {file.name}  — {e}")
+                    for row in rows:
+                        self._sql_log("  ".join(str(v).ljust(col_widths[i]) for i, v in enumerate(row)))
 
-        self._sql_log("")
-        self._sql_log(
-            f"Done — {total_imported} file(s) imported, "
-            f"{total_skipped} skipped (already done or unsupported)."
-        )
+                    total_rows += len(rows)
+                    self._sql_log("")
 
-        cursor.close()
-        conn.close()
+                if not cursor.nextset():
+                    break
+
+            conn.commit()
+            conn.close()
+
+            summary = f"Done — {total_rows} row(s) returned" if total_rows else "Done — completed with no rows returned"
+            self._sql_log(summary)
+            self.after(0, lambda: self.sql_exec_status.config(
+                text="Success \u2713", foreground="#2a7a2a"
+            ))
+
+        except Exception as e:
+            try:
+                conn.rollback()
+                conn.close()
+            except Exception:
+                pass
+            self._sql_log(f"Error: {e}")
+            self.after(0, lambda: self.sql_exec_status.config(
+                text="Error \u2717", foreground="#cc0000"
+            ))
 
     def _sql_log(self, message: str):
         """Append a line to the SQL Import live log. Safe to call from a background thread."""
@@ -1557,77 +1612,6 @@ class FileManagerApp(tk.Tk):
 
         self.after(0, _insert)
 
-    # ── SQL Import log grid ────────────────────────────────────────────────────
-
-    def _refresh_sql_import_log(self):
-        """Query import.FileImportLog and populate the grid. Silently no-ops if
-        there is no connection configured yet."""
-        if not PYODBC_AVAILABLE:
-            return
-
-        try:
-            conn_str = self._get_sql_conn_str()
-        except ValueError:
-            # Server or database not filled in yet — leave the grid empty
-            return
-
-        try:
-            conn   = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT TOP 100
-                    ImportId,
-                    ImportedAt,
-                    FilePath,
-                    FileType,
-                    ISNULL(RowsLoaded,   0),
-                    ISNULL(RowsValid,    0),
-                    ISNULL(RowsRejected, 0),
-                    Status
-                FROM import.FileImportLog
-                ORDER BY ImportedAt DESC
-            """)
-            rows = cursor.fetchall()
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            # Connection works for test but fails here — surface the error
-            self.sql_conn_status.config(
-                text=f"Log refresh error: {e}", foreground="#cc0000"
-            )
-            return
-
-        self.sql_log_tree.delete(*self.sql_log_tree.get_children())
-
-        for row in rows:
-            import_id, imported_at, file_path, file_type, loaded, valid, rejected, status = row
-
-            p             = Path(file_path) if file_path else Path("")
-            file_name     = p.name
-            source_folder = p.parent.name   # e.g. "ABC", "DEF"
-
-            # Map file type to its staging table destination
-            destination = {
-                "CSV":  "staging.RawCSV",
-                "JSON": "staging.RawJSON",
-            }.get((file_type or "").upper(), "staging.RawCSV")
-
-            # Format the timestamp if it's a datetime object
-            if isinstance(imported_at, datetime):
-                imported_at = imported_at.strftime("%Y-%m-%d %H:%M:%S")
-
-            self.sql_log_tree.insert("", tk.END, values=(
-                import_id,
-                imported_at,
-                source_folder,
-                file_name,
-                file_type,
-                destination,
-                loaded,
-                valid,
-                rejected,
-                status,
-            ))
 
     # ── File Inspector tab ────────────────────────────────────────────────────
 
