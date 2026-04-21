@@ -306,5 +306,19 @@
     "source_path": "C:\\FileLanding\\PQR\\test_20260312_220305_05.ndjson",
     "dest_path": "C:\\FileDest\\PQR\\test_20260312_220305_05.ndjson",
     "folder": "PQR"
+  },
+  {
+    "run_time": "2026-04-21T11:52:06.155678",
+    "file_name": "claims.csv",
+    "source_path": "C:\\FileLanding\\ABC\\claims.csv",
+    "dest_path": "C:\\FileDest\\ABC\\claims.csv",
+    "folder": "ABC"
+  },
+  {
+    "run_time": "2026-04-21T11:52:06.155678",
+    "file_name": "encounters.txt",
+    "source_path": "C:\\FileLanding\\ABC\\encounters.txt",
+    "dest_path": "C:\\FileDest\\ABC\\encounters.txt",
+    "folder": "ABC"
   }
 ]

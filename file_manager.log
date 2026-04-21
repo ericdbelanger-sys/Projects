@@ -121,3 +121,9 @@
 2026-03-12 22:03:09  INFO      Found: C:\FileLanding\PQR\test_20260312_220305_05.ndjson
 2026-03-12 22:03:09  INFO      Copied: C:\FileLanding\PQR\test_20260312_220305_05.ndjson \u2192 C:\FileDest\PQR\test_20260312_220305_05.ndjson
 2026-03-12 22:03:09  INFO      Run complete: 5 copied, 0 skipped.
+2026-04-21 11:50:33  INFO      Run complete: 0 copied, 0 skipped.
+2026-04-21 11:52:06  INFO      Found: C:\FileLanding\ABC\claims.csv
+2026-04-21 11:52:06  INFO      Copied: C:\FileLanding\ABC\claims.csv \u2192 C:\FileDest\ABC\claims.csv
+2026-04-21 11:52:06  INFO      Found: C:\FileLanding\ABC\encounters.txt
+2026-04-21 11:52:06  INFO      Copied: C:\FileLanding\ABC\encounters.txt \u2192 C:\FileDest\ABC\encounters.txt
+2026-04-21 11:52:06  INFO      Run complete: 2 copied, 0 skipped.

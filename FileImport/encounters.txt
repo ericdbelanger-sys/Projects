@@ -1,0 +1,11 @@
+EncounterId	PatientId	VisitDate	DischargeDate	FacilityId	FacilityName	AttendingProvider	EncounterType	AdmitDiagnosis	DischargeDiagnosis	LOS_Days	DischargeDisposition
+ENC8801	P4821	2024-01-02	2024-01-04	FAC001	Riverside General Hospital	Dr. Sandra Cole	Inpatient	J18.9	J18.9	2	Home
+ENC8802	P7741	2024-01-06	2024-01-06	FAC002	Northside Urgent Care	Dr. Paul Reeves	Outpatient	S83.001A	S83.001A	0	Home
+ENC8803	P2298	2024-01-08	2024-01-10	FAC001	Riverside General Hospital	Dr. Kevin Shaw	Inpatient	M17.11	M17.11	2	SNF Transfer
+ENC8804	P5512	2024-01-09	2024-01-09	FAC003	Summit Ambulatory Center	Dr. Nina Patel	Outpatient	E11.9	E11.65	0	Home
+ENC8805	P3317	2024-01-11	2024-01-11	FAC002	Northside Urgent Care	Dr. Paul Reeves	Outpatient	Z00.00	Z00.00	0	Home
+ENC8806	P6654	2024-01-13	2024-01-16	FAC001	Riverside General Hospital	Dr. Sandra Cole	Inpatient	M54.5	M54.5	3	Home
+ENC8807	P1130	2024-01-15	2024-01-15	FAC003	Summit Ambulatory Center	Dr. James Wu	Outpatient	K21.0	K21.0	0	Home
+ENC8808	P8865	2024-01-17	2024-01-20	FAC001	Riverside General Hospital	Dr. Kevin Shaw	Inpatient	I10	I10	3	Home
+ENC8809	P3399	2024-01-19	2024-01-19	FAC004	Valley Heart Center	Dr. Maria Chen	Outpatient	I25.10	I25.10	0	Home
+ENC8810	P4421	2024-01-21	2024-01-21	FAC002	Northside Urgent Care	Dr. Paul Reeves	Outpatient	M25.511	M25.511	0	Home

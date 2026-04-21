@@ -1102,8 +1102,16 @@ class FileManagerApp(tk.Tk):
         ToolTip(btn_test, "Connect to SQL Server and populate the Database and Stored Procedure dropdowns")
 
         btn_sql_save = ttk.Button(row1, text="Save", command=self._save_sql_connection)
-        btn_sql_save.pack(side=tk.LEFT)
+        btn_sql_save.pack(side=tk.LEFT, padx=(0, 6))
         ToolTip(btn_sql_save, "Save the server and database name to config.json")
+
+        btn_kill = tk.Button(
+            row1, text="Kill Connections",
+            bg="#c0392b", fg="white", font=("Segoe UI", 9, "bold"),
+            command=self._kill_sql_connections,
+        )
+        btn_kill.pack(side=tk.LEFT)
+        ToolTip(btn_kill, "Kill all active FileManager sessions on the server and confirm they are gone")
 
         # Connection status indicator
         self.sql_conn_status = ttk.Label(
@@ -1215,20 +1223,75 @@ class FileManagerApp(tk.Tk):
             f"DATABASE={database};"
             "Trusted_Connection=yes;"
             "TrustServerCertificate=yes;"
+            "APP=FileManager;"
         )
 
     def _test_sql_connection(self):
         """Try to connect and run a trivial query; populate the DB and SP dropdowns on success."""
         try:
             conn_str = self._get_sql_conn_str()
-            conn     = pyodbc.connect(conn_str, timeout=5)
-            conn.execute("SELECT 1")
-            self._load_databases(conn)   # populate DB dropdown before closing
-            conn.close()
+            conn     = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            try:
+                conn.execute("SELECT 1")
+                self._load_databases(conn)
+            finally:
+                conn.close()
             self.sql_conn_status.config(text="Connected \u2713", foreground="#2a7a2a")
-            self._load_stored_procedures()   # populate SP dropdown for selected DB
+            self._load_stored_procedures()
         except Exception as e:
             self.sql_conn_status.config(text=f"Error: {e}", foreground="#cc0000")
+
+    def _kill_sql_connections(self) -> None:
+        """Kill all active FileManager sessions on the server then confirm they are gone."""
+        try:
+            conn_str = self._get_sql_conn_str()
+        except ValueError as e:
+            messagebox.showwarning("Not Configured", str(e))
+            return
+
+        try:
+            # Use a fresh autocommit connection — this one won't be killed
+            conn   = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            cursor = conn.cursor()
+
+            # Find all FileManager sessions except this one
+            cursor.execute(
+                "SELECT session_id FROM sys.dm_exec_sessions "
+                "WHERE program_name IN ('FileManager', 'Python') AND session_id <> @@SPID"
+            )
+            sessions = [row[0] for row in cursor.fetchall()]
+
+            if not sessions:
+                conn.close()
+                self.sql_conn_status.config(
+                    text="No active connections to kill", foreground="#888"
+                )
+                messagebox.showinfo("Kill Connections", "No active FileManager connections found.")
+                return
+
+            # Kill each session — KILL requires a literal value, not a parameter
+            for sid in sessions:
+                cursor.execute(f"KILL {sid}")
+
+            # Confirm they are gone
+            cursor.execute(
+                "SELECT session_id FROM sys.dm_exec_sessions "
+                "WHERE program_name IN ('FileManager', 'Python') AND session_id <> @@SPID"
+            )
+            remaining = [row[0] for row in cursor.fetchall()]
+            conn.close()
+
+            if remaining:
+                msg = f"Killed {len(sessions)} session(s) but {len(remaining)} still appear active — they may be mid-rollback."
+                self.sql_conn_status.config(text="Some sessions still active", foreground="#cc6600")
+                messagebox.showwarning("Kill Connections", msg)
+            else:
+                msg = f"{len(sessions)} session(s) killed successfully."
+                self.sql_conn_status.config(text="All connections killed \u2713", foreground="#2a7a2a")
+                messagebox.showinfo("Kill Connections", msg)
+
+        except Exception as e:
+            messagebox.showerror("Kill Connections", f"Error: {e}")
 
     def _load_databases(self, conn) -> None:
         """Populate the Database dropdown from sys.databases on the already-open connection.
@@ -1270,16 +1333,18 @@ class FileManagerApp(tk.Tk):
             return  # fields not filled in yet
 
         try:
-            conn   = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT SCHEMA_NAME(schema_id) + '.' + name "
-                "FROM sys.procedures "
-                "ORDER BY SCHEMA_NAME(schema_id), name"
-            )
-            sp_names = [row[0] for row in cursor.fetchall()]
-            cursor.close()
-            conn.close()
+            conn   = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            try:
+                cursor   = conn.cursor()
+                cursor.execute(
+                    "SELECT SCHEMA_NAME(schema_id) + '.' + name "
+                    "FROM sys.procedures "
+                    "ORDER BY SCHEMA_NAME(schema_id), name"
+                )
+                sp_names = [row[0] for row in cursor.fetchall()]
+                cursor.close()
+            finally:
+                conn.close()
         except Exception:
             return  # leave dropdown unchanged on any error
 
@@ -1308,35 +1373,38 @@ class FileManagerApp(tk.Tk):
             return
 
         try:
-            conn   = pyodbc.connect(conn_str, timeout=5)
-            cursor = conn.cursor()
+            conn   = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            try:
+                cursor = conn.cursor()
 
-            # Fetch parameter names and types
-            cursor.execute(
-                "SELECT name, TYPE_NAME(user_type_id) "
-                "FROM sys.parameters "
-                "WHERE object_id = OBJECT_ID(?) AND name <> '' "
-                "ORDER BY parameter_id",
-                sp,
-            )
-            params = [(row[0], row[1]) for row in cursor.fetchall()]
+                # Fetch parameter names and types
+                cursor.execute(
+                    "SELECT name, TYPE_NAME(user_type_id) "
+                    "FROM sys.parameters "
+                    "WHERE object_id = OBJECT_ID(?) AND name <> '' "
+                    "ORDER BY parameter_id",
+                    sp,
+                )
+                params = [(row[0], row[1]) for row in cursor.fetchall()]
 
-            # Fetch the SP source text to scan for a commented exec example
-            cursor.execute(
-                "SELECT definition FROM sys.sql_modules WHERE object_id = OBJECT_ID(?)",
-                sp,
-            )
-            row        = cursor.fetchone()
-            definition = row[0] if row else ""
-            cursor.close()
-            conn.close()
+                # Fetch the SP source text to scan for a commented exec example
+                cursor.execute(
+                    "SELECT definition FROM sys.sql_modules WHERE object_id = OBJECT_ID(?)",
+                    sp,
+                )
+                row        = cursor.fetchone()
+                definition = row[0] if row else ""
+                cursor.close()
+            finally:
+                conn.close()
         except Exception:
             params     = []
             definition = ""
 
         # Scan every comment line for:  -- exec <anything> @param = value ...
         # Collect ALL matching lines as separate presets.
-        exec_pattern  = re.compile(r"--\s*exec\s+\S.*?(@\w+\s*=.+)", re.IGNORECASE)
+        # Match exec lines in both -- line comments and /* block comments */
+        exec_pattern  = re.compile(r"(?:--\s*)?exec\s+\S.*?(@\w+\s*=.+)", re.IGNORECASE)
         param_pattern = re.compile(r"(@\w+)\s*=\s*(?:'([^']*)'|(\S+?)(?:,|$))")
 
         presets: list[dict[str, str]] = []   # one dict per exec comment line
@@ -1422,6 +1490,16 @@ class FileManagerApp(tk.Tk):
         # ── One entry row per parameter ───────────────────────────────────────
         first_prefill = presets[0] if presets else {}
 
+        # Build a map of param_name (lower) -> sorted unique values across all presets.
+        # Parameters with 2+ distinct preset values become dropdowns automatically.
+        preset_options: dict[str, list[str]] = {}
+        for preset in presets:
+            for key, val in preset.items():
+                preset_options.setdefault(key, [])
+                if val not in preset_options[key]:
+                    preset_options[key].append(val)
+
+
         for param_name, data_type in params:
             row = tk.Frame(self.sql_params_frame)
             row.pack(fill=tk.X, pady=2)
@@ -1442,7 +1520,14 @@ class FileManagerApp(tk.Tk):
 
             var = tk.StringVar()
             var.set(first_prefill.get(param_name.lower(), ""))
-            ttk.Entry(row, textvariable=var, width=36).pack(side=tk.LEFT)
+
+            options = preset_options.get(param_name.lower(), [])
+            if len(options) >= 2:
+                # Multiple preset values found — show as an editable dropdown
+                combo = ttk.Combobox(row, textvariable=var, values=options, width=34)
+                combo.pack(side=tk.LEFT)
+            else:
+                ttk.Entry(row, textvariable=var, width=36).pack(side=tk.LEFT)
 
             self._sql_param_entries.append((param_name, data_type, var))
 
@@ -1539,7 +1624,7 @@ class FileManagerApp(tk.Tk):
 
         # Connect
         try:
-            conn = pyodbc.connect(self._get_sql_conn_str(), timeout=10)
+            conn = pyodbc.connect(self._get_sql_conn_str(), timeout=10, autocommit=True)
         except Exception as e:
             self._sql_log(f"Connection error: {e}")
             self.after(0, lambda: self.sql_exec_status.config(
@@ -1547,7 +1632,7 @@ class FileManagerApp(tk.Tk):
             ))
             return
 
-        # Execute
+        # Execute — try/finally guarantees the connection always closes
         try:
             cursor = conn.cursor()
             cursor.execute(exec_stmt)
@@ -1567,7 +1652,6 @@ class FileManagerApp(tk.Tk):
                     col_widths = [max(len(h), max((len(str(r[i])) for r in rows), default=0))
                                   for i, h in enumerate(headers)]
 
-                    # Header row
                     header_line = "  ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
                     self._sql_log(f"Result set {result_num}:")
                     self._sql_log(header_line)
@@ -1582,9 +1666,6 @@ class FileManagerApp(tk.Tk):
                 if not cursor.nextset():
                     break
 
-            conn.commit()
-            conn.close()
-
             summary = f"Done — {total_rows} row(s) returned" if total_rows else "Done — completed with no rows returned"
             self._sql_log(summary)
             self.after(0, lambda: self.sql_exec_status.config(
@@ -1592,15 +1673,13 @@ class FileManagerApp(tk.Tk):
             ))
 
         except Exception as e:
-            try:
-                conn.rollback()
-                conn.close()
-            except Exception:
-                pass
             self._sql_log(f"Error: {e}")
             self.after(0, lambda: self.sql_exec_status.config(
                 text="Error \u2717", foreground="#cc0000"
             ))
+
+        finally:
+            conn.close()
 
     def _sql_log(self, message: str):
         """Append a line to the SQL Import live log. Safe to call from a background thread."""

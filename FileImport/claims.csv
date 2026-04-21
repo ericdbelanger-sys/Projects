@@ -1,0 +1,11 @@
+ClaimId,PatientId,PatientLastName,PatientFirstName,DateOfService,SubmittedDate,ProviderId,ProviderName,DiagnosisCode,ProcedureCode,BilledAmount,AllowedAmount,PaidAmount,ClaimStatus
+CLM10041,P4821,Martinez,Rosa,2024-01-03,2024-01-10,PR9901,Riverside Medical Group,J18.9,99213,185.00,142.50,114.00,Paid
+CLM10042,P3317,Thompson,James,2024-01-05,2024-01-12,PR0042,Northside Primary Care,Z00.00,99395,250.00,190.00,152.00,Paid
+CLM10043,P6654,Nguyen,Lan,2024-01-07,2024-01-14,PR9901,Riverside Medical Group,M54.5,99214,220.00,175.00,140.00,Paid
+CLM10044,P2298,Carter,William,2024-01-08,2024-01-15,PR7733,Summit Orthopedics,M17.11,99243,310.00,240.00,192.00,Pending
+CLM10045,P5512,Lee,Jennifer,2024-01-10,2024-01-17,PR0042,Northside Primary Care,E11.9,99214,220.00,175.00,0.00,Denied
+CLM10046,P7741,Robinson,Marcus,2024-01-11,2024-01-18,PR7733,Summit Orthopedics,S83.001A,99283,475.00,380.00,304.00,Paid
+CLM10047,P1130,Patel,Anita,2024-01-13,2024-01-20,PR9901,Riverside Medical Group,K21.0,99213,185.00,142.50,114.00,Paid
+CLM10048,P8865,Harris,Derek,2024-01-14,2024-01-21,PR0042,Northside Primary Care,I10,99215,290.00,225.00,180.00,Pending
+CLM10049,P3399,Flores,Maria,2024-01-16,2024-01-23,PR6612,Valley Cardiology,I25.10,99245,420.00,335.00,268.00,Paid
+CLM10050,P4421,Brooks,Steven,2024-01-18,2024-01-25,PR7733,Summit Orthopedics,M25.511,99203,195.00,150.00,120.00,Paid
