@@ -10,6 +10,6 @@
     },
     "sql_connection": {
         "server": "localhost",
-        "database": "FileImportDB"
+        "database": "dbStagingData"
     }
 }

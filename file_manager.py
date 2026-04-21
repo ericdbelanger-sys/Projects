@@ -11,6 +11,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+try:
+    import sv_ttk
+    SV_TTK_AVAILABLE = True
+except ImportError:
+    SV_TTK_AVAILABLE = False
+
 # pyodbc is only needed for the SQL Import tab; the rest of the app works without it
 try:
     import pyodbc
@@ -432,6 +438,10 @@ class FileManagerApp(tk.Tk):
         self._build_ui()
         self._update_status()
 
+        # Apply Sun Valley theme (light mode by default) if available
+        if SV_TTK_AVAILABLE:
+            sv_ttk.set_theme("light")
+
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
@@ -486,6 +496,16 @@ class FileManagerApp(tk.Tk):
         )
         btn_clear.pack(side=tk.LEFT)
         ToolTip(btn_clear, "Clear the on-screen log (the log file on disk is not affected)")
+
+        # Light / dark mode toggle (only shown when sv-ttk is available)
+        if SV_TTK_AVAILABLE:
+            self._dark_mode = False
+            self._theme_btn = ttk.Button(
+                btn_frame, text="🌙  Dark",
+                width=9, command=self._toggle_theme,
+            )
+            self._theme_btn.pack(side=tk.RIGHT)
+            ToolTip(self._theme_btn, "Toggle between light and dark mode")
 
         # Live log output area
         self.log_area = scrolledtext.ScrolledText(
@@ -1046,6 +1066,12 @@ class FileManagerApp(tk.Tk):
         self.log_area.config(state=tk.NORMAL)
         self.log_area.delete("1.0", tk.END)
         self.log_area.config(state=tk.DISABLED)
+
+    def _toggle_theme(self):
+        """Switch between light and dark mode using sv-ttk."""
+        self._dark_mode = not self._dark_mode
+        sv_ttk.set_theme("dark" if self._dark_mode else "light")
+        self._theme_btn.config(text="☀️  Light" if self._dark_mode else "🌙  Dark")
 
     def _update_status(self):
         """Refresh the status bar with the last run timestamp."""
