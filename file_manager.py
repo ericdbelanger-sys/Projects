@@ -6,6 +6,7 @@ import random
 import re
 import shutil
 import threading
+import csv
 import tkinter as tk
 from datetime import datetime, timezone
 from pathlib import Path
@@ -383,7 +384,6 @@ def _sniff_csv(file: Path) -> tuple[str, int]:
         delimiter = ","
 
     # Detect header: every field is purely letters / underscores / spaces
-    import re
     fields      = first.split(delimiter)
     looks_like_header = all(re.fullmatch(r"[A-Za-z_\s]+", f.strip()) for f in fields if f.strip())
     skip_header = 1 if looks_like_header else 0
@@ -406,7 +406,13 @@ class ToolTip:
     def _show(self, _event=None) -> None:
         """Display the tooltip just below the widget."""
         if self._window:
-            return
+            # Window reference may be stale if the page was hidden without a <Leave> event
+            try:
+                if self._window.winfo_exists():
+                    return
+            except Exception:
+                pass
+            self._window = None  # stale — reset so a fresh one is created
         x = self._widget.winfo_rootx() + 20
         y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
         self._window = tw = tk.Toplevel(self._widget)
@@ -445,9 +451,9 @@ class FileManagerApp(tk.Tk):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        """Construct and lay out all widgets."""
+        """Construct the left-nav + content-area layout."""
 
-        # Shared status bar at the very bottom (outside the notebook)
+        # Status bar at the very bottom
         self.status_var = tk.StringVar()
         tk.Label(
             self, textvariable=self.status_var,
@@ -455,26 +461,42 @@ class FileManagerApp(tk.Tk):
             font=("Segoe UI", 8), fg="#555",
         ).pack(fill=tk.X, side=tk.BOTTOM, ipady=2)
 
-        # Tabbed notebook — fills the rest of the window
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+        # Outer container — left nav + right content side by side
+        outer = tk.Frame(self)
+        outer.pack(fill=tk.BOTH, expand=True)
 
+        # ── Left navigation panel ─────────────────────────────────────────────
+        self._nav_frame = tk.Frame(outer, width=160, bg="#1a1a2e")
+        self._nav_frame.pack(side=tk.LEFT, fill=tk.Y)
+        self._nav_frame.pack_propagate(False)
+
+        # ── Right content area ────────────────────────────────────────────────
+        self._content = tk.Frame(outer)
+        self._content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Page registry and nav button registry
+        self._pages: dict       = {}
+        self._nav_buttons: dict = {}
+        self._active_page: str  = ""
+
+        # Build all pages first, then the nav on top of them
         self._build_main_tab()
-        self._build_settings_tab()
+        self._build_file_inspector_tab()
+        self._build_demo_tab()
         self._build_run_history_tab()
         self._build_file_history_tab()
         self._build_log_tab()
         self._build_sql_import_tab()
-        self._build_file_inspector_tab()
-        self._build_demo_tab()
+        self._build_add_root_tab()
+        self._build_settings_tab()
 
-        # Refresh tabs whenever they are switched to
-        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+        self._build_nav()
+        self._switch_page("GetFiles")
 
     def _build_main_tab(self):
-        """Tab 1 — GetFiles button and live log output."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  GetFiles  ")
+        """GetFiles page — run button and live log output."""
+        frame = ttk.Frame(self._content)
+        self._pages["GetFiles"] = frame
 
         # Button bar
         btn_frame = tk.Frame(frame, pady=6)
@@ -518,9 +540,9 @@ class FileManagerApp(tk.Tk):
         self.log_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 6))
 
     def _build_settings_tab(self):
-        """Tab 2 — edit backup directory and folder mappings without touching config.json."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  Settings  ")
+        """Settings page — edit backup directory and folder mappings."""
+        frame = ttk.Frame(self._content)
+        self._pages["Settings"] = frame
 
         pad = {"padx": 10, "pady": 4}
 
@@ -606,9 +628,9 @@ class FileManagerApp(tk.Tk):
         frame.rowconfigure(3, weight=1)
 
     def _build_demo_tab(self):
-        """Demo tab — create test files in a source folder to try out GetFiles."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  Demo  ")
+        """Demo page — create test files in a source folder to try out GetFiles."""
+        frame = ttk.Frame(self._content)
+        self._pages["Demo"] = frame
 
         pad = {"padx": 12, "pady": 5}
 
@@ -691,9 +713,9 @@ class FileManagerApp(tk.Tk):
         self.demo_output.grid(row=7, column=0, columnspan=3, padx=12, pady=(4, 12))
 
     def _build_run_history_tab(self):
-        """Tab 3 — one row per GetFiles run."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  Run History  ")
+        """Run History page — one row per GetFiles run."""
+        frame = ttk.Frame(self._content)
+        self._pages["Run History"] = frame
 
         cols = ("run_time", "found", "copied", "skipped")
 
@@ -718,9 +740,9 @@ class FileManagerApp(tk.Tk):
         vsb.pack(side=tk.LEFT, fill=tk.Y, pady=8, padx=(0, 8))
 
     def _build_file_history_tab(self):
-        """Tab 3 — every file ever copied, with a live search box."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  File History  ")
+        """File History page — every file ever copied, with a live search box."""
+        frame = ttk.Frame(self._content)
+        self._pages["File History"] = frame
 
         # Search bar
         search_frame = tk.Frame(frame, pady=6)
@@ -758,9 +780,9 @@ class FileManagerApp(tk.Tk):
         self._all_file_records = []
 
     def _build_log_tab(self):
-        """Tab 4 — raw contents of file_manager.log."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  Log File  ")
+        """Log File page — raw contents of file_manager.log."""
+        frame = ttk.Frame(self._content)
+        self._pages["Log File"] = frame
 
         # Refresh button
         btn_frame = tk.Frame(frame, pady=6)
@@ -783,24 +805,108 @@ class FileManagerApp(tk.Tk):
         hsb.pack(side=tk.BOTTOM, fill=tk.X, padx=8)
         self.log_file_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 4))
 
-    # ── Tab switching ─────────────────────────────────────────────────────────
+    # ── Navigation ────────────────────────────────────────────────────────────
 
-    def _on_tab_changed(self, _event):
-        """Reload the active tab whenever the user switches to it."""
-        tab_name = self.notebook.tab(self.notebook.select(), "text").strip()
-        if tab_name == "Settings":
+    # Nav color constants
+    _NAV_BG     = "#1a1a2e"
+    _NAV_CAT_FG = "#6b7db3"
+    _NAV_FG     = "#c8ccd4"
+    _NAV_ACT_BG = "#2d3561"
+    _NAV_HOV_BG = "#252545"
+    _NAV_ACT_FG = "#ffffff"
+
+    # Category → page names structure
+    _NAV_STRUCTURE = [
+        ("FILE INTERACTION", ["GetFiles", "File Inspector", "Demo"]),
+        ("HISTORY & LOGS",   ["Run History", "File History", "Log File"]),
+        ("DATA",             ["SQL Runner", "Add Root"]),
+        ("",                 ["Settings"]),
+    ]
+
+    def _build_nav(self):
+        """Build the left navigation panel with category headers and page buttons."""
+        # App title at the top of the nav
+        tk.Label(
+            self._nav_frame, text="File Manager",
+            bg=self._NAV_BG, fg="#ffffff",
+            font=("Segoe UI", 11, "bold"), pady=14,
+        ).pack(fill=tk.X, padx=12)
+
+        tk.Frame(self._nav_frame, bg="#3d3d5c", height=1).pack(
+            fill=tk.X, padx=10, pady=(0, 6)
+        )
+
+        for category, pages in self._NAV_STRUCTURE:
+            if category:
+                tk.Label(
+                    self._nav_frame, text=category,
+                    bg=self._NAV_BG, fg=self._NAV_CAT_FG,
+                    font=("Segoe UI", 7, "bold"),
+                    anchor=tk.W, pady=4,
+                ).pack(fill=tk.X, padx=(14, 0))
+
+            for page_name in pages:
+                btn = tk.Label(
+                    self._nav_frame,
+                    text=f"   {page_name}",
+                    bg=self._NAV_BG, fg=self._NAV_FG,
+                    font=("Segoe UI", 9),
+                    anchor=tk.W, cursor="hand2", pady=7,
+                )
+                btn.pack(fill=tk.X)
+
+                # Hover effects
+                btn.bind("<Enter>",    lambda _, b=btn, p=page_name: b.config(
+                    bg=self._NAV_HOV_BG if p != self._active_page else self._NAV_ACT_BG
+                ))
+                btn.bind("<Leave>",    lambda _, b=btn, p=page_name: b.config(
+                    bg=self._NAV_ACT_BG if p == self._active_page else self._NAV_BG
+                ))
+                btn.bind("<Button-1>", lambda _, p=page_name: self._switch_page(p))
+
+                self._nav_buttons[page_name] = btn
+
+            # Separator after each group
+            tk.Frame(self._nav_frame, bg="#3d3d5c", height=1).pack(
+                fill=tk.X, padx=10, pady=(4, 6)
+            )
+
+    def _switch_page(self, name: str):
+        """Show the named page, hide all others, and update the nav highlight."""
+        # Hide the currently visible page
+        if self._active_page and self._active_page in self._pages:
+            self._pages[self._active_page].pack_forget()
+
+        # Reset old nav button style
+        if self._active_page and self._active_page in self._nav_buttons:
+            self._nav_buttons[self._active_page].config(
+                bg=self._NAV_BG, fg=self._NAV_FG
+            )
+
+        # Show the new page
+        if name in self._pages:
+            self._pages[name].pack(fill=tk.BOTH, expand=True)
+
+        # Highlight new nav button
+        if name in self._nav_buttons:
+            self._nav_buttons[name].config(
+                bg=self._NAV_ACT_BG, fg=self._NAV_ACT_FG
+            )
+
+        self._active_page = name
+
+        # Trigger any refresh logic the page needs on switch
+        if name == "Settings":
             self._load_settings_form()
-        elif tab_name == "Demo":
+        elif name == "Demo":
             self._refresh_demo_tab()
-        elif tab_name == "Run History":
+        elif name == "Run History":
             self._refresh_run_history()
-        elif tab_name == "File History":
+        elif name == "File History":
             self._refresh_file_history()
-        elif tab_name == "Log File":
+        elif name == "Log File":
             self._refresh_log_tab()
-        elif tab_name == "SQL Runner":
-            pass  # no auto-refresh needed; connection is on-demand
-        elif tab_name == "File Inspector":
+        elif name == "File Inspector":
             self._refresh_inspector_folders()
 
     # ── Settings helpers ──────────────────────────────────────────────────────
@@ -1087,9 +1193,9 @@ class FileManagerApp(tk.Tk):
     # ── SQL Import tab ────────────────────────────────────────────────────────
 
     def _build_sql_import_tab(self):
-        """SQL Runner tab — connect to SQL Server, pick a database and SP, execute it."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  SQL Runner  ")
+        """SQL Runner page — connect to SQL Server, pick a database and SP, execute it."""
+        frame = ttk.Frame(self._content)
+        self._pages["SQL Runner"] = frame
 
         # Show a friendly message if pyodbc is not installed
         if not PYODBC_AVAILABLE:
@@ -1181,12 +1287,11 @@ class FileManagerApp(tk.Tk):
         self.sql_params_frame.pack(fill=tk.X, pady=(6, 0))
 
         # Placeholder shown before an SP is chosen
-        self._sql_params_hint = ttk.Label(
+        ttk.Label(
             self.sql_params_frame,
             text="Select a stored procedure to load its parameters.",
             foreground="#888", font=("Segoe UI", 8, "italic"),
-        )
-        self._sql_params_hint.pack(anchor=tk.W)
+        ).pack(anchor=tk.W)
 
         # List of (param_name, data_type, tk.StringVar) for the current SP
         self._sql_param_entries: list[tuple[str, str, tk.StringVar]] = []
@@ -1525,7 +1630,6 @@ class FileManagerApp(tk.Tk):
                 if val not in preset_options[key]:
                     preset_options[key].append(val)
 
-
         for param_name, data_type in params:
             row = tk.Frame(self.sql_params_frame)
             row.pack(fill=tk.X, pady=2)
@@ -1717,13 +1821,183 @@ class FileManagerApp(tk.Tk):
 
         self.after(0, _insert)
 
+    # ── Add Root tab ──────────────────────────────────────────────────────────
+
+    def _build_add_root_tab(self):
+        """Add Root page — insert a new row into the dbo.directory table."""
+        frame = ttk.Frame(self._content)
+        self._pages["Add Root"] = frame
+
+        pad = {"padx": 12, "pady": 6}
+
+        ttk.Label(
+            frame, text="Add Root Directory",
+            font=("Segoe UI", 11, "bold"),
+        ).grid(row=0, column=0, columnspan=3, sticky=tk.W, padx=12, pady=(14, 2))
+
+        ttk.Label(
+            frame,
+            text="Insert a new record into dbo.directory using the active SQL connection.",
+            foreground="#888", font=("Segoe UI", 8),
+        ).grid(row=1, column=0, columnspan=3, sticky=tk.W, padx=12, pady=(0, 10))
+
+        ttk.Separator(frame, orient=tk.HORIZONTAL).grid(
+            row=2, column=0, columnspan=3, sticky=tk.EW, padx=12, pady=(0, 10)
+        )
+
+        # ── Form fields ───────────────────────────────────────────────────────
+        fields = [
+            ("ClientID",     "Unique client identifier"),
+            ("Practice",     "Practice name"),
+            ("FilePath",     "UNC or local path to the root folder"),
+            ("DatabaseName", "Target database name"),
+        ]
+
+        self._root_vars: dict[str, tk.StringVar] = {}
+
+        for i, (field, hint) in enumerate(fields):
+            row = i + 3
+            ttk.Label(frame, text=f"{field}:", font=("Segoe UI", 9, "bold"),
+                      anchor=tk.W, width=14).grid(row=row, column=0, sticky=tk.W, **pad)
+
+            var = tk.StringVar()
+            self._root_vars[field] = var
+            ttk.Entry(frame, textvariable=var, width=40).grid(
+                row=row, column=1, sticky=tk.EW, padx=(0, 4), pady=6
+            )
+            ttk.Label(frame, text=hint, foreground="#888",
+                      font=("Segoe UI", 8)).grid(row=row, column=2, sticky=tk.W, padx=(0, 12))
+
+        ttk.Separator(frame, orient=tk.HORIZONTAL).grid(
+            row=7, column=0, columnspan=3, sticky=tk.EW, padx=12, pady=(6, 8)
+        )
+
+        # ── Submit button + status label ──────────────────────────────────────
+        btn_row = tk.Frame(frame)
+        btn_row.grid(row=8, column=0, columnspan=3, sticky=tk.W, padx=12, pady=(0, 6))
+
+        tk.Button(
+            btn_row, text="Insert Record",
+            bg="#2d7dd2", fg="white", font=("Segoe UI", 9, "bold"),
+            width=14, command=self._do_add_root,
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        self._root_status = ttk.Label(btn_row, text="", font=("Segoe UI", 9, "bold"))
+        self._root_status.pack(side=tk.LEFT)
+
+        ttk.Button(
+            btn_row, text="View Records", command=self._load_root_records,
+        ).pack(side=tk.LEFT, padx=(12, 0))
+        ToolTip(btn_row.winfo_children()[-1], "Load all records from dbo.directory")
+
+        # ── Records table ─────────────────────────────────────────────────────
+        ttk.Separator(frame, orient=tk.HORIZONTAL).grid(
+            row=9, column=0, columnspan=3, sticky=tk.EW, padx=12, pady=(8, 6)
+        )
+
+        cols = ("ClientID", "Practice", "FilePath", "DatabaseName")
+        tree_frame = ttk.Frame(frame)
+        tree_frame.grid(row=10, column=0, columnspan=3, sticky=tk.NSEW, padx=12, pady=(0, 10))
+
+        self._root_tree = ttk.Treeview(
+            tree_frame, columns=cols, show="headings", selectmode="browse", height=8
+        )
+        for col in cols:
+            self._root_tree.heading(col, text=col)
+            self._root_tree.column(col, width=160, anchor=tk.W)
+
+        vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self._root_tree.yview)
+        self._root_tree.configure(yscrollcommand=vsb.set)
+        self._root_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vsb.pack(side=tk.LEFT, fill=tk.Y)
+
+        frame.columnconfigure(1, weight=1)
+        frame.rowconfigure(10, weight=1)
+
+    def _do_add_root(self):
+        """Validate form and insert a new row into dbo.directory."""
+        if not PYODBC_AVAILABLE:
+            messagebox.showerror("pyodbc Missing", "pyodbc is required for this feature.")
+            return
+
+        # Read and validate all fields
+        values = {field: var.get().strip() for field, var in self._root_vars.items()}
+        missing = [f for f, v in values.items() if not v]
+        if missing:
+            messagebox.showwarning("Missing Fields",
+                                   f"Please fill in: {', '.join(missing)}")
+            return
+
+        try:
+            conn_str = self._get_sql_conn_str()
+        except ValueError as e:
+            messagebox.showwarning("Not Connected", str(e))
+            return
+
+        try:
+            conn   = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO dbo.directory (ClientID, Practice, FilePath, DatabaseName) "
+                "VALUES (?, ?, ?, ?)",
+                values["ClientID"],
+                values["Practice"],
+                values["FilePath"],
+                values["DatabaseName"],
+            )
+            conn.close()
+
+            self._root_status.config(text="Inserted \u2713", foreground="#2a7a2a")
+
+            # Clear the form after a successful insert
+            for var in self._root_vars.values():
+                var.set("")
+
+        except Exception as e:
+            self._root_status.config(text="Error \u2717", foreground="#cc0000")
+            messagebox.showerror("Insert Failed", str(e))
+
+        # Refresh the table after a successful insert
+        self._load_root_records()
+
+    def _load_root_records(self):
+        """Fetch all rows from dbo.directory and populate the records table."""
+        if not PYODBC_AVAILABLE:
+            return
+
+        try:
+            conn_str = self._get_sql_conn_str()
+        except ValueError:
+            messagebox.showwarning("Not Connected",
+                                   "Fill in Server and Database in SQL Runner first.")
+            return
+
+        try:
+            conn   = pyodbc.connect(conn_str, timeout=5, autocommit=True)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT ClientID, Practice, FilePath, DatabaseName FROM dbo.directory ORDER BY ClientID"
+            )
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception as e:
+            messagebox.showerror("Load Failed", str(e))
+            return
+
+        self._root_tree.delete(*self._root_tree.get_children())
+        for row in rows:
+            self._root_tree.insert("", tk.END, values=tuple(row))
+
+        self._root_status.config(
+            text=f"{len(rows)} record(s) loaded \u2713", foreground="#2a7a2a"
+        )
 
     # ── File Inspector tab ────────────────────────────────────────────────────
 
     def _build_file_inspector_tab(self):
-        """Tab 8 — pick a file from a backup folder and view column/key statistics."""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="  File Inspector  ")
+        """File Inspector page — pick a file from a backup folder and view column/key statistics."""
+        frame = ttk.Frame(self._content)
+        self._pages["File Inspector"] = frame
 
         # ── Controls ─────────────────────────────────────────────────────────
         ctrl_frame = ttk.LabelFrame(frame, text=" Select File ", padding=6)
@@ -1856,9 +2130,6 @@ class FileManagerApp(tk.Tk):
 
         Handles CSV/TXT (delimiter-separated) and NDJSON. Runs in a background thread.
         """
-        import csv
-        import json as _json
-
         ext  = file_path.suffix.lower()
         size = file_path.stat().st_size
         # Human-readable size
@@ -1951,9 +2222,9 @@ class FileManagerApp(tk.Tk):
                         if not line:
                             continue
                         try:
-                            record = _json.loads(line)
+                            record = json.loads(line)
                             valid_count += 1
-                        except _json.JSONDecodeError:
+                        except json.JSONDecodeError:
                             invalid_count += 1
                             continue
 
